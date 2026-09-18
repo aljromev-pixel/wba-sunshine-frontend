@@ -25,6 +25,7 @@ export const inventoryService = {
     const item = product(productId); const batch = state.batches.find((entry) => entry.id === batchId); const error = validateMovement({ type, product: item, quantity, batch }); if (error) throw new Error(error)
     const amount = Number(quantity); const increases = ['Stock In', 'Return'].includes(type); item.stock += increases ? amount : -amount
     if (batch && ['Stock Out', 'Transfer'].includes(type)) batch.quantity -= amount
+    if (batch && ['Stock In', 'Return'].includes(type)) batch.quantity += amount
     if (type === 'Stock In' && batchId === 'new') { const number = `REC-${String(Date.now()).slice(-5)}`; state.batches.push({ id: `b-${Date.now()}`, productId, number, quantity: amount, receivedAt: today, expiresAt: null }) }
     const transaction = { id: nextId('INV'), type, productId, quantity: amount, batch: batch?.number || 'N/A', date: stamp(), user: user.name, reference: reference || reason || 'Manual entry', status: 'Completed' }; state.transactions.unshift(transaction); state.audit.unshift({ id: nextId('AUD'), timestamp: transaction.date, user: user.name, department: user.department, roleLevel: user.roleLevel, action: type, module: 'Inventory', reference: transaction.id, description: `${item.name} — ${amount} ${item.unit}` }); emit(); return transaction
   },
