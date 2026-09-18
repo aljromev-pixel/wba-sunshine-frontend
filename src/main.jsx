@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles/global.css'
+import './styles/workflows.css'
 import App from './App'
 import { AppProvider } from './context/AppContext'
 
