@@ -6,7 +6,8 @@ import { PERMISSIONS } from './utils/permissions'
 import { Dashboard } from './pages/Dashboard'
 import { Batches, InventoryList, ProductDetails } from './pages/InventoryPages'
 import { Adjustments, CycleCount, MovementForm } from './pages/WorkflowPages'
-import { Alerts, AuditTrail, ReorderCalculator, Reports, Users } from './pages/OperationsPages'
+import { AuditTrail, ReorderCalculator, Reports, Users } from './pages/OperationsPages'
+import { AlertPage as Alerts } from './pages/AlertPage'
 
 const permissions = { '/inventory': PERMISSIONS.INVENTORY_VIEW, '/batches': PERMISSIONS.FIFO_VIEW, '/stock-in': PERMISSIONS.STOCK_IN, '/stock-out': PERMISSIONS.STOCK_OUT, '/transfers': PERMISSIONS.TRANSFER_CREATE, '/returns': PERMISSIONS.RETURNS_CREATE, '/cycle-count': PERMISSIONS.CYCLE_COUNT, '/adjustments': PERMISSIONS.ADJUSTMENT_REQUEST, '/alerts': PERMISSIONS.ALERTS_VIEW, '/reorder-calculator': PERMISSIONS.REORDER_CALCULATE, '/reports': PERMISSIONS.REPORTS_VIEW, '/audit-trail': PERMISSIONS.AUDIT_VIEW, '/users': PERMISSIONS.USERS_MANAGE }
 function NotReady({ label }) { return <section className="surface empty-state"><span>◫</span><h2>{label}</h2><p>This authorized workspace is being loaded.</p></section> }
