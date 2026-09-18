@@ -18,7 +18,7 @@ const nav = [
   { href: '/audit-trail', label: 'Audit Trail', icon: '◷', permission: PERMISSIONS.AUDIT_VIEW },
   { href: '/users', label: 'User Management', icon: '♙', permission: PERMISSIONS.USERS_MANAGE },
 ]
-const title = (path) => nav.find((item) => item.href === path)?.label || (path.startsWith('/inventory/') ? 'Product Details' : 'WalangBrownout')
+const title = (path) => nav.find((item) => item.href === path)?.label || (path.startsWith('/inventory/') ? 'Product Details' : 'Sunshine')
 
 export function AppLayout({ path, children }) {
   const { user, can, logout, notice } = useApp(); const [open, setOpen] = useState(false)
