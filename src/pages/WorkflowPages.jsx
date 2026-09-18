@@ -5,22 +5,351 @@ import { inventoryService } from '../services/inventoryService'
 import { fifoBatch, getBatchStatus } from '../utils/inventoryLogic'
 import { PERMISSIONS } from '../utils/permissions'
 
-const config = { 'Stock In': { note: 'Record received goods into the single warehouse. Add a supplier reference for traceability.', action: 'Record stock in' }, 'Stock Out': { note: 'Use available stock only. The oldest valid FIFO batch is selected automatically when applicable.', action: 'Complete stock out' }, Transfer: { note: 'Record a controlled transfer movement within the warehouse workflow.', action: 'Record transfer' }, Return: { note: 'Return accepted stock to inventory after verification.', action: 'Process return' } }
+const config = {
+  'Stock In': {
+    note: 'Record received goods into the single warehouse. Add a supplier reference for traceability.',
+    action: 'Record stock in',
+  },
+  'Stock Out': {
+    note: 'Use available stock only. The oldest valid FIFO batch is selected automatically when applicable.',
+    action: 'Complete stock out',
+  },
+  Transfer: { note: 'Record a controlled transfer movement within the warehouse workflow.', action: 'Record transfer' },
+  Return: { note: 'Return accepted stock to inventory after verification.', action: 'Process return' },
+}
 export function MovementForm({ type }) {
-  const { data, user, notify } = useApp(); const [productId, setProductId] = useState(''); const [batchId, setBatchId] = useState(''); const [quantity, setQuantity] = useState(''); const [reference, setReference] = useState(''); const [error, setError] = useState('')
-  const product = data.products.find((item) => item.id === productId); const batches = data.batches.filter((item) => item.productId === productId); const suggested = productId ? fifoBatch(data.batches, productId) : null
-  const chooseProduct = (id) => { setProductId(id); const suggestion = fifoBatch(data.batches, id); setBatchId(suggestion?.id || (type === 'Stock In' ? 'new' : '')) }
-  const submit = (event) => { event.preventDefault(); setError(''); try { const transaction = inventoryService.move({ type, productId, quantity, batchId, reference, user }); notify(`${type} recorded as ${transaction.id}.`); setProductId(''); setBatchId(''); setQuantity(''); setReference('') } catch (exception) { setError(exception.message) } }
-  return <section className="page-stack workflow-page"><div className="page-intro"><div><p className="eyebrow">WAREHOUSE WORKFLOW</p><h2>{type} transaction</h2><p>{config[type].note}</p></div></div><form className="surface transaction-form" onSubmit={submit}><div className="form-grid"><label>Product<select value={productId} onChange={(event) => chooseProduct(event.target.value)} required><option value="">Select a product</option>{data.products.map((item) => <option value={item.id} key={item.id}>{item.name} — {item.stock} available</option>)}</select></label><label>Quantity<input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} required placeholder="Enter quantity" /></label><label>Batch{type === 'Stock In' ? <select value={batchId} onChange={(event) => setBatchId(event.target.value)}><option value="new">Create receiving batch</option>{batches.map((batch) => <option value={batch.id} key={batch.id}>{batch.number} — {batch.quantity} available</option>)}</select> : <select value={batchId} onChange={(event) => setBatchId(event.target.value)} required disabled={!productId}><option value="">Select a batch</option>{batches.map((batch) => <option value={batch.id} key={batch.id} disabled={getBatchStatus(batch) === 'Expired'}>{batch.number} — {getBatchStatus(batch)}</option>)}</select>}</label><label>Reference / reason<input value={reference} onChange={(event) => setReference(event.target.value)} required placeholder={type === 'Stock Out' ? 'Sales order or reference' : 'Enter reference'} /></label></div>{product && <div className="form-context"><span>Available stock: <strong>{product.stock} {product.unit}</strong></span>{suggested && type !== 'Stock In' && <span>FIFO suggestion: <strong>{suggested.number}</strong> · {suggested.quantity} available</span>}</div>}{error && <p className="form-error" role="alert">{error}</p>}<div className="form-actions"><button type="submit" className="button primary">{config[type].action}</button></div></form></section>
+  const { data, user, notify } = useApp()
+  const [productId, setProductId] = useState('')
+  const [batchId, setBatchId] = useState('')
+  const [quantity, setQuantity] = useState('')
+  const [reference, setReference] = useState('')
+  const [error, setError] = useState('')
+  const product = data.products.find((item) => item.id === productId)
+  const batches = data.batches.filter((item) => item.productId === productId)
+  const suggested = productId ? fifoBatch(data.batches, productId) : null
+  const chooseProduct = (id) => {
+    setProductId(id)
+    const suggestion = fifoBatch(data.batches, id)
+    setBatchId(suggestion?.id || (type === 'Stock In' ? 'new' : ''))
+  }
+  const submit = (event) => {
+    event.preventDefault()
+    setError('')
+    try {
+      const transaction = inventoryService.move({ type, productId, quantity, batchId, reference, user })
+      notify(`${type} recorded as ${transaction.id}.`)
+      setProductId('')
+      setBatchId('')
+      setQuantity('')
+      setReference('')
+    } catch (exception) {
+      setError(exception.message)
+    }
+  }
+  return (
+    <section className="page-stack workflow-page">
+      <div className="page-intro">
+        <div>
+          <p className="eyebrow">WAREHOUSE WORKFLOW</p>
+          <h2>{type} transaction</h2>
+          <p>{config[type].note}</p>
+        </div>
+      </div>
+      <form className="surface transaction-form" onSubmit={submit}>
+        <div className="form-grid">
+          <label>
+            Product
+            <select value={productId} onChange={(event) => chooseProduct(event.target.value)} required>
+              <option value="">Select a product</option>
+              {data.products.map((item) => (
+                <option value={item.id} key={item.id}>
+                  {item.name} — {item.stock} available
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Quantity
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={quantity}
+              onChange={(event) => setQuantity(event.target.value)}
+              required
+              placeholder="Enter quantity"
+            />
+          </label>
+          <label>
+            Batch
+            {type === 'Stock In' ? (
+              <select value={batchId} onChange={(event) => setBatchId(event.target.value)}>
+                <option value="new">Create receiving batch</option>
+                {batches.map((batch) => (
+                  <option value={batch.id} key={batch.id}>
+                    {batch.number} — {batch.quantity} available
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <select
+                value={batchId}
+                onChange={(event) => setBatchId(event.target.value)}
+                required
+                disabled={!productId}
+              >
+                <option value="">Select a batch</option>
+                {batches.map((batch) => (
+                  <option value={batch.id} key={batch.id} disabled={getBatchStatus(batch) === 'Expired'}>
+                    {batch.number} — {getBatchStatus(batch)}
+                  </option>
+                ))}
+              </select>
+            )}
+          </label>
+          <label>
+            Reference / reason
+            <input
+              value={reference}
+              onChange={(event) => setReference(event.target.value)}
+              required
+              placeholder={type === 'Stock Out' ? 'Sales order or reference' : 'Enter reference'}
+            />
+          </label>
+        </div>
+        {product && (
+          <div className="form-context">
+            <span>
+              Available stock:{' '}
+              <strong>
+                {product.stock} {product.unit}
+              </strong>
+            </span>
+            {suggested && type !== 'Stock In' && (
+              <span>
+                FIFO suggestion: <strong>{suggested.number}</strong> · {suggested.quantity} available
+              </span>
+            )}
+          </div>
+        )}
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="form-actions">
+          <button type="submit" className="button primary">
+            {config[type].action}
+          </button>
+        </div>
+      </form>
+    </section>
+  )
 }
 export function CycleCount() {
-  const { data, user, notify } = useApp(); const [productId, setProductId] = useState(data.products[0]?.id || ''); const [counted, setCounted] = useState(''); const [submitted, setSubmitted] = useState(null); const product = data.products.find((item) => item.id === productId); const variance = counted === '' ? null : Number(counted) - product.stock
-  const submit = (event) => { event.preventDefault(); if (counted === '' || Number(counted) < 0) return; const reason = `Cycle count: system ${product.stock}, counted ${counted}`; try { const request = inventoryService.submitAdjustment({ productId, requestedQty: counted, reason, user }); setSubmitted(request); notify(`Cycle count submitted as ${request.id}; review is required.`) } catch (exception) { notify(exception.message, 'error') } }
-  return <section className="page-stack"><div className="page-intro"><div><p className="eyebrow">VERIFICATION WORKFLOW</p><h2>Cycle count</h2><p>Compare a physical count with the system quantity. Variances are submitted as adjustment requests for review.</p></div></div><form className="surface count-card" onSubmit={submit}><label>Product<select value={productId} onChange={(event) => { setProductId(event.target.value); setCounted(''); setSubmitted(null) }}>{data.products.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div className="count-comparison"><article><small>System quantity</small><strong>{product?.stock}</strong><span>{product?.unit}</span></article><article><small>Counted quantity</small><input type="number" min="0" value={counted} onChange={(event) => setCounted(event.target.value)} placeholder="Enter count" required /></article><article className={variance ? 'variance' : ''}><small>Variance</small><strong>{variance === null ? '—' : variance > 0 ? `+${variance}` : variance}</strong><span>{variance === null ? 'Awaiting count' : variance === 0 ? 'Matched' : 'Requires review'}</span></article></div><div className="form-actions"><button className="button primary">Submit count result</button></div>{submitted && <p className="success-note">Submitted {submitted.id}. The inventory quantity remains unchanged until an authorized reviewer approves it.</p>}</form></section>
+  const { data, user, notify } = useApp()
+  const [productId, setProductId] = useState(data.products[0]?.id || '')
+  const [counted, setCounted] = useState('')
+  const [submitted, setSubmitted] = useState(null)
+  const product = data.products.find((item) => item.id === productId)
+  const variance = counted === '' ? null : Number(counted) - product.stock
+  const submit = (event) => {
+    event.preventDefault()
+    if (counted === '' || Number(counted) < 0) return
+    const reason = `Cycle count: system ${product.stock}, counted ${counted}`
+    try {
+      const request = inventoryService.submitAdjustment({ productId, requestedQty: counted, reason, user })
+      setSubmitted(request)
+      notify(`Cycle count submitted as ${request.id}; review is required.`)
+    } catch (exception) {
+      notify(exception.message, 'error')
+    }
+  }
+  return (
+    <section className="page-stack">
+      <div className="page-intro">
+        <div>
+          <p className="eyebrow">VERIFICATION WORKFLOW</p>
+          <h2>Cycle count</h2>
+          <p>
+            Compare a physical count with the system quantity. Variances are submitted as adjustment requests for
+            review.
+          </p>
+        </div>
+      </div>
+      <form className="surface count-card" onSubmit={submit}>
+        <label>
+          Product
+          <select
+            value={productId}
+            onChange={(event) => {
+              setProductId(event.target.value)
+              setCounted('')
+              setSubmitted(null)
+            }}
+          >
+            {data.products.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="count-comparison">
+          <article>
+            <small>System quantity</small>
+            <strong>{product?.stock}</strong>
+            <span>{product?.unit}</span>
+          </article>
+          <article>
+            <small>Counted quantity</small>
+            <input
+              type="number"
+              min="0"
+              value={counted}
+              onChange={(event) => setCounted(event.target.value)}
+              placeholder="Enter count"
+              required
+            />
+          </article>
+          <article className={variance ? 'variance' : ''}>
+            <small>Variance</small>
+            <strong>{variance === null ? '—' : variance > 0 ? `+${variance}` : variance}</strong>
+            <span>{variance === null ? 'Awaiting count' : variance === 0 ? 'Matched' : 'Requires review'}</span>
+          </article>
+        </div>
+        <div className="form-actions">
+          <button className="button primary">Submit count result</button>
+        </div>
+        {submitted && (
+          <p className="success-note">
+            Submitted {submitted.id}. The inventory quantity remains unchanged until an authorized reviewer approves it.
+          </p>
+        )}
+      </form>
+    </section>
+  )
 }
 export function Adjustments() {
-  const { data, user, can, notify } = useApp(); const [productId, setProductId] = useState(''); const [requestedQty, setRequestedQty] = useState(''); const [reason, setReason] = useState(''); const [error, setError] = useState(''); const approve = can(PERMISSIONS.ADJUSTMENT_APPROVE)
-  const submit = (event) => { event.preventDefault(); try { const item = inventoryService.submitAdjustment({ productId, requestedQty, reason, user }); notify(`Adjustment request ${item.id} submitted.`); setProductId(''); setRequestedQty(''); setReason(''); setError('') } catch (exception) { setError(exception.message) } }
-  const review = (id, decision) => { if (!window.confirm(`${decision ? 'Approve' : 'Reject'} this adjustment request?`)) return; try { inventoryService.reviewAdjustment(id, decision, user); notify(`Adjustment request ${decision ? 'approved and applied' : 'rejected'}.`) } catch (exception) { notify(exception.message, 'error') } }
-  return <section className="page-stack"><div className="page-intro"><div><p className="eyebrow">CONTROLLED CHANGES</p><h2>Inventory adjustments</h2><p>Staff submit requests; only authorized supervisors, purchasing managers, or administrators can approve an inventory change.</p></div></div><div className="two-column adjustments-grid"><form className="surface compact-form" onSubmit={submit}><div className="section-heading"><div><p className="eyebrow">REQUEST</p><h2>Submit adjustment</h2></div></div><label>Product<select value={productId} onChange={(event) => setProductId(event.target.value)} required><option value="">Select a product</option>{data.products.map((item) => <option value={item.id} key={item.id}>{item.name} — system: {item.stock}</option>)}</select></label><label>Verified quantity<input type="number" min="0" value={requestedQty} onChange={(event) => setRequestedQty(event.target.value)} required /></label><label>Reason<textarea value={reason} onChange={(event) => setReason(event.target.value)} required placeholder="Describe the count variance, damage, or other reason" /></label>{error && <p className="form-error">{error}</p>}<button className="button primary">Submit for review</button></form><section className="surface"><div className="section-heading"><div><p className="eyebrow">REVIEW QUEUE</p><h2>{approve ? 'Approve or reject requests' : 'Request status'}</h2></div></div><div className="compact-list">{data.adjustments.map((item) => { const product = data.products.find((entry) => entry.id === item.productId); return <div key={item.id} className="adjustment-row"><div><strong>{item.id} · {product?.name}</strong><small>System {item.systemQty} → requested {item.requestedQty} · {item.requestedBy}</small><small>{item.reason}</small></div><div>{item.status === 'Pending' && approve ? <span className="review-actions"><button onClick={() => review(item.id, true)}>Approve</button><button onClick={() => review(item.id, false)}>Reject</button></span> : <StatusBadge>{item.status}</StatusBadge>}</div></div> })}{!data.adjustments.length && <EmptyState title="No adjustment requests" />}</div></section></div></section>
+  const { data, user, can, notify } = useApp()
+  const [productId, setProductId] = useState('')
+  const [requestedQty, setRequestedQty] = useState('')
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState('')
+  const approve = can(PERMISSIONS.ADJUSTMENT_APPROVE)
+  const submit = (event) => {
+    event.preventDefault()
+    try {
+      const item = inventoryService.submitAdjustment({ productId, requestedQty, reason, user })
+      notify(`Adjustment request ${item.id} submitted.`)
+      setProductId('')
+      setRequestedQty('')
+      setReason('')
+      setError('')
+    } catch (exception) {
+      setError(exception.message)
+    }
+  }
+  const review = (id, decision) => {
+    if (!window.confirm(`${decision ? 'Approve' : 'Reject'} this adjustment request?`)) return
+    try {
+      inventoryService.reviewAdjustment(id, decision, user)
+      notify(`Adjustment request ${decision ? 'approved and applied' : 'rejected'}.`)
+    } catch (exception) {
+      notify(exception.message, 'error')
+    }
+  }
+  return (
+    <section className="page-stack">
+      <div className="page-intro">
+        <div>
+          <p className="eyebrow">CONTROLLED CHANGES</p>
+          <h2>Inventory adjustments</h2>
+          <p>
+            Staff submit requests; only authorized supervisors, purchasing managers, or administrators can approve an
+            inventory change.
+          </p>
+        </div>
+      </div>
+      <div className="two-column adjustments-grid">
+        <form className="surface compact-form" onSubmit={submit}>
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">REQUEST</p>
+              <h2>Submit adjustment</h2>
+            </div>
+          </div>
+          <label>
+            Product
+            <select value={productId} onChange={(event) => setProductId(event.target.value)} required>
+              <option value="">Select a product</option>
+              {data.products.map((item) => (
+                <option value={item.id} key={item.id}>
+                  {item.name} — system: {item.stock}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Verified quantity
+            <input
+              type="number"
+              min="0"
+              value={requestedQty}
+              onChange={(event) => setRequestedQty(event.target.value)}
+              required
+            />
+          </label>
+          <label>
+            Reason
+            <textarea
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              required
+              placeholder="Describe the count variance, damage, or other reason"
+            />
+          </label>
+          {error && <p className="form-error">{error}</p>}
+          <button className="button primary">Submit for review</button>
+        </form>
+        <section className="surface">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">REVIEW QUEUE</p>
+              <h2>{approve ? 'Approve or reject requests' : 'Request status'}</h2>
+            </div>
+          </div>
+          <div className="compact-list">
+            {data.adjustments.map((item) => {
+              const product = data.products.find((entry) => entry.id === item.productId)
+              return (
+                <div key={item.id} className="adjustment-row">
+                  <div>
+                    <strong>
+                      {item.id} · {product?.name}
+                    </strong>
+                    <small>
+                      System {item.systemQty} → requested {item.requestedQty} · {item.requestedBy}
+                    </small>
+                    <small>{item.reason}</small>
+                  </div>
+                  <div>
+                    {item.status === 'Pending' && approve ? (
+                      <span className="review-actions">
+                        <button onClick={() => review(item.id, true)}>Approve</button>
+                        <button onClick={() => review(item.id, false)}>Reject</button>
+                      </span>
+                    ) : (
+                      <StatusBadge>{item.status}</StatusBadge>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            {!data.adjustments.length && <EmptyState title="No adjustment requests" />}
+          </div>
+        </section>
+      </div>
+    </section>
+  )
 }
