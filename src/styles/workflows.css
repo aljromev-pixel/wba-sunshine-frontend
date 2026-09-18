@@ -1,1 +1,139 @@
-.transaction-form{max-width:920px}.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}.transaction-form label,.compact-form label,.count-card>label{display:grid;gap:.38rem;color:#526e70;font-size:.73rem;font-weight:800}.transaction-form input,.transaction-form select,.compact-form input,.compact-form select,.compact-form textarea,.count-card select,.count-card input{width:100%;padding:.68rem .75rem;border:1px solid #dbe6e3;border-radius:8px;background:#fff;color:#173b42;outline-color:#c96535}.compact-form textarea{min-height:90px;resize:vertical}.form-context{display:flex;flex-wrap:wrap;gap:1rem;margin-top:1rem;padding:.75rem;border-radius:8px;background:#edf5f2;color:#597576;font-size:.75rem}.form-actions{display:flex;justify-content:end;margin-top:1.25rem}.form-error{margin:.8rem 0 0;color:#b84e32;font-size:.75rem;font-weight:700}.count-card{display:grid;gap:1.2rem;max-width:920px}.count-comparison{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}.count-comparison article{display:grid;gap:.35rem;padding:1rem;border-radius:10px;background:#edf5f2}.count-comparison small{color:#688181;font-size:.7rem;font-weight:800}.count-comparison strong{font-family:Manrope,sans-serif;font-size:1.65rem;letter-spacing:-.06em}.count-comparison span{color:#78908f;font-size:.7rem}.count-comparison .variance{background:#fff2eb}.adjustments-grid{grid-template-columns:.75fr 1.25fr}.compact-form{display:grid;align-content:start;gap:.85rem}.adjustment-row small{max-width:390px}.review-actions{display:flex;gap:.4rem}.review-actions button{padding:.35rem .5rem;border:1px solid #cce0d9;border-radius:6px;background:#ecf6f0;color:#267153;font-size:.66rem;font-weight:800}.review-actions button:last-child{border-color:#f1d1c4;background:#fff4ef;color:#b74d30}.success-note{margin:0;padding:.7rem;border-radius:8px;background:#e9f5ed;color:#267153;font-size:.75rem}@media(max-width:700px){.form-grid,.count-comparison,.adjustments-grid{grid-template-columns:1fr}.form-actions .button{width:100%}}
+.transaction-form {
+  max-width: 920px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+.transaction-form label,
+.compact-form label,
+.count-card > label {
+  display: grid;
+  gap: 0.38rem;
+  color: #526e70;
+  font-size: 0.73rem;
+  font-weight: 800;
+}
+.transaction-form input,
+.transaction-form select,
+.compact-form input,
+.compact-form select,
+.compact-form textarea,
+.count-card select,
+.count-card input {
+  width: 100%;
+  padding: 0.68rem 0.75rem;
+  border: 1px solid #dbe6e3;
+  border-radius: 8px;
+  background: #fff;
+  color: #173b42;
+  outline-color: #c96535;
+}
+.compact-form textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+.form-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: #edf5f2;
+  color: #597576;
+  font-size: 0.75rem;
+}
+.form-actions {
+  display: flex;
+  justify-content: end;
+  margin-top: 1.25rem;
+}
+.form-error {
+  margin: 0.8rem 0 0;
+  color: #b84e32;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.count-card {
+  display: grid;
+  gap: 1.2rem;
+  max-width: 920px;
+}
+.count-comparison {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+.count-comparison article {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border-radius: 10px;
+  background: #edf5f2;
+}
+.count-comparison small {
+  color: #688181;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+.count-comparison strong {
+  font-family: Manrope, sans-serif;
+  font-size: 1.65rem;
+  letter-spacing: -0.06em;
+}
+.count-comparison span {
+  color: #78908f;
+  font-size: 0.7rem;
+}
+.count-comparison .variance {
+  background: #fff2eb;
+}
+.adjustments-grid {
+  grid-template-columns: 0.75fr 1.25fr;
+}
+.compact-form {
+  display: grid;
+  align-content: start;
+  gap: 0.85rem;
+}
+.adjustment-row small {
+  max-width: 390px;
+}
+.review-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+.review-actions button {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #cce0d9;
+  border-radius: 6px;
+  background: #ecf6f0;
+  color: #267153;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+.review-actions button:last-child {
+  border-color: #f1d1c4;
+  background: #fff4ef;
+  color: #b74d30;
+}
+.success-note {
+  margin: 0;
+  padding: 0.7rem;
+  border-radius: 8px;
+  background: #e9f5ed;
+  color: #267153;
+  font-size: 0.75rem;
+}
+@media (max-width: 700px) {
+  .form-grid,
+  .count-comparison,
+  .adjustments-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-actions .button {
+    width: 100%;
+  }
+}

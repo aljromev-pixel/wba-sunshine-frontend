@@ -18,18 +18,82 @@ const nav = [
   { href: '/audit-trail', label: 'Audit Trail', icon: '◷', permission: PERMISSIONS.AUDIT_VIEW },
   { href: '/users', label: 'User Management', icon: '♙', permission: PERMISSIONS.USERS_MANAGE },
 ]
-const title = (path) => nav.find((item) => item.href === path)?.label || (path.startsWith('/inventory/') ? 'Product Details' : 'Sunshine')
+const title = (path) =>
+  nav.find((item) => item.href === path)?.label || (path.startsWith('/inventory/') ? 'Product Details' : 'Sunshine')
 
 export function AppLayout({ path, children }) {
-  const { user, can, logout, notice } = useApp(); const [open, setOpen] = useState(false)
-  const go = (href) => { window.location.hash = href; setOpen(false) }
-  return <div className="application">
-    <button className="mobile-menu" aria-label="Open navigation" onClick={() => setOpen(true)}>☰</button>
-    <aside className={`sidebar ${open ? 'sidebar-open' : ''}`} aria-label="Main navigation">
-      <div className="brand"><span className="brand-wordmark" aria-label="Sunshine">Sun<span>shine</span></span><span><small>WALANGBROWNOUT APPLIANCES</small></span><button className="close-menu" onClick={() => setOpen(false)} aria-label="Close navigation">×</button></div>
-      <nav>{nav.filter((item) => !item.permission || can(item.permission)).map((item) => <a key={item.href} className={path === item.href || (item.href === '/inventory' && path.startsWith('/inventory/')) ? 'active' : ''} href={`#${item.href}`} onClick={() => setOpen(false)}><i>{item.icon}</i>{item.label}</a>)}</nav>
-      <div className="profile"><div className="avatar">{user.initials}</div><div><strong>{user.name}</strong><small>{user.department} • {user.roleLevel}</small></div><button className="text-button" onClick={logout}>Sign out</button></div>
-    </aside>
-    <main className="main-content"><header className="topbar"><div><p className="breadcrumb">SUNSHINE / INVENTORY WORKSPACE</p><h1>{title(path)}</h1></div><button className="header-user" onClick={() => go('/dashboard')} aria-label="Open dashboard"><span className="profile-trigger">{user.initials}</span><span><strong>{user.name}</strong><small>{user.department} • {user.roleLevel}</small></span></button></header>{notice && <div className={`toast ${notice.tone}`}>{notice.message}</div>}{children}</main>
-  </div>
+  const { user, can, logout, notice } = useApp()
+  const [open, setOpen] = useState(false)
+  const go = (href) => {
+    window.location.hash = href
+    setOpen(false)
+  }
+  return (
+    <div className="application">
+      <button className="mobile-menu" aria-label="Open navigation" onClick={() => setOpen(true)}>
+        ☰
+      </button>
+      <aside className={`sidebar ${open ? 'sidebar-open' : ''}`} aria-label="Main navigation">
+        <div className="brand">
+          <span className="brand-wordmark" aria-label="Sunshine">
+            Sun<span>shine</span>
+          </span>
+          <span>
+            <small>WALANGBROWNOUT APPLIANCES</small>
+          </span>
+          <button className="close-menu" onClick={() => setOpen(false)} aria-label="Close navigation">
+            ×
+          </button>
+        </div>
+        <nav>
+          {nav
+            .filter((item) => !item.permission || can(item.permission))
+            .map((item) => (
+              <a
+                key={item.href}
+                className={
+                  path === item.href || (item.href === '/inventory' && path.startsWith('/inventory/')) ? 'active' : ''
+                }
+                href={`#${item.href}`}
+                onClick={() => setOpen(false)}
+              >
+                <i>{item.icon}</i>
+                {item.label}
+              </a>
+            ))}
+        </nav>
+        <div className="profile">
+          <div className="avatar">{user.initials}</div>
+          <div>
+            <strong>{user.name}</strong>
+            <small>
+              {user.department} • {user.roleLevel}
+            </small>
+          </div>
+          <button className="text-button" onClick={logout}>
+            Sign out
+          </button>
+        </div>
+      </aside>
+      <main className="main-content">
+        <header className="topbar">
+          <div>
+            <p className="breadcrumb">SUNSHINE / INVENTORY WORKSPACE</p>
+            <h1>{title(path)}</h1>
+          </div>
+          <button className="header-user" onClick={() => go('/dashboard')} aria-label="Open dashboard">
+            <span className="profile-trigger">{user.initials}</span>
+            <span>
+              <strong>{user.name}</strong>
+              <small>
+                {user.department} • {user.roleLevel}
+              </small>
+            </span>
+          </button>
+        </header>
+        {notice && <div className={`toast ${notice.tone}`}>{notice.message}</div>}
+        {children}
+      </main>
+    </div>
+  )
 }
