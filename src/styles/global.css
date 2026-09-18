@@ -1,0 +1,17 @@
+:root {
+  color: #17343a;
+  background: #f3f7f6;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button, input, select, textarea { font: inherit; }
+
+.app-shell { display: grid; min-height: 100vh; padding: 1.5rem; place-items: center; }
+.welcome-card { width: min(100%, 40rem); padding: clamp(2rem, 6vw, 4rem); border: 1px solid #dbe5e2; border-radius: 1.25rem; background: #fff; box-shadow: 0 18px 45px rgb(20 66 67 / 8%); }
+.eyebrow { color: #d66c2c; font-size: .75rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+h1 { margin: .5rem 0; color: #123b42; font-size: clamp(1.75rem, 5vw, 2.75rem); line-height: 1.1; }
+.welcome-card p:last-child { color: #567074; line-height: 1.6; }
