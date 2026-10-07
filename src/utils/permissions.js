@@ -44,6 +44,12 @@ export const permissionMatrix = {
     PERMISSIONS.ADJUSTMENT_APPROVE,
     PERMISSIONS.AUDIT_VIEW,
   ],
+  'Warehouse:Manager': [
+    ...warehouseStaff,
+    PERMISSIONS.INVENTORY_EDIT,
+    PERMISSIONS.ADJUSTMENT_APPROVE,
+    PERMISSIONS.AUDIT_VIEW,
+  ],
   'Sales:Staff': salesStaff,
   'Sales:Supervisor': [...salesStaff, PERMISSIONS.AUDIT_VIEW],
   'Purchasing:Staff': purchasingStaff,
