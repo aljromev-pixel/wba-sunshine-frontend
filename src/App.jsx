@@ -34,13 +34,14 @@ function NotReady({ label }) {
   )
 }
 export default function App() {
-  const { user, can } = useApp()
+  const { user, can, authLoading } = useApp()
   const [path, setPath] = useState(() => window.location.hash.slice(1) || '/dashboard')
   useEffect(() => {
     const update = () => setPath(window.location.hash.slice(1) || '/dashboard')
     window.addEventListener('hashchange', update)
     return () => window.removeEventListener('hashchange', update)
   }, [])
+  if (authLoading) return <section className="loading-state">Restoring your session…</section>
   if (!user) return <Login />
   const basePath = path.startsWith('/inventory/') ? '/inventory' : path
   const needed = permissions[basePath]
