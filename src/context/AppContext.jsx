@@ -26,7 +26,10 @@ export function AppProvider({ children }) {
     if (!token) return
     authService
       .me()
-      .then(({ user: authenticatedUser }) => setUser({ ...authenticatedUser, initials: initials(authenticatedUser.name) }))
+      .then(async ({ user: authenticatedUser }) => {
+        setUser({ ...authenticatedUser, initials: initials(authenticatedUser.name) })
+        await inventoryService.load()
+      })
       .catch(() => {})
       .finally(() => setAuthLoading(false))
     return () => {
@@ -53,6 +56,7 @@ export function AppProvider({ children }) {
         const { token, user: authenticatedUser } = await authService.login(credentials)
         sessionStorage.setItem(tokenKey, token)
         setUser({ ...authenticatedUser, initials: initials(authenticatedUser.name) })
+        await inventoryService.load()
       },
       logout: async () => {
         try {
@@ -62,6 +66,7 @@ export function AppProvider({ children }) {
         } finally {
           sessionStorage.removeItem(tokenKey)
           setUser(null)
+          inventoryService.reset()
         }
       },
     }),

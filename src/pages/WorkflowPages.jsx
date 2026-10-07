@@ -32,11 +32,11 @@ export function MovementForm({ type }) {
     const suggestion = fifoBatch(data.batches, id)
     setBatchId(suggestion?.id || (type === 'Stock In' ? 'new' : ''))
   }
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault()
     setError('')
     try {
-      const transaction = inventoryService.move({ type, productId, quantity, batchId, reference, user })
+      const transaction = await inventoryService.move({ type, productId, quantity, batchId, reference })
       notify(`${type} recorded as ${transaction.id}.`)
       setProductId('')
       setBatchId('')
@@ -153,12 +153,12 @@ export function CycleCount() {
   const [submitted, setSubmitted] = useState(null)
   const product = data.products.find((item) => item.id === productId)
   const variance = counted === '' ? null : Number(counted) - product.stock
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault()
     if (counted === '' || Number(counted) < 0) return
     const reason = `Cycle count: system ${product.stock}, counted ${counted}`
     try {
-      const request = inventoryService.submitAdjustment({ productId, requestedQty: counted, reason, user })
+      const request = await inventoryService.submitAdjustment({ productId, requestedQty: counted, reason })
       setSubmitted(request)
       notify(`Cycle count submitted as ${request.id}; review is required.`)
     } catch (exception) {
@@ -237,10 +237,10 @@ export function Adjustments() {
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
   const approve = can(PERMISSIONS.ADJUSTMENT_APPROVE)
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault()
     try {
-      const item = inventoryService.submitAdjustment({ productId, requestedQty, reason, user })
+      const item = await inventoryService.submitAdjustment({ productId, requestedQty, reason })
       notify(`Adjustment request ${item.id} submitted.`)
       setProductId('')
       setRequestedQty('')
@@ -250,10 +250,10 @@ export function Adjustments() {
       setError(exception.message)
     }
   }
-  const review = (id, decision) => {
+  const review = async (id, decision) => {
     if (!window.confirm(`${decision ? 'Approve' : 'Reject'} this adjustment request?`)) return
     try {
-      inventoryService.reviewAdjustment(id, decision, user)
+      await inventoryService.reviewAdjustment(id, decision)
       notify(`Adjustment request ${decision ? 'approved and applied' : 'rejected'}.`)
     } catch (exception) {
       notify(exception.message, 'error')
