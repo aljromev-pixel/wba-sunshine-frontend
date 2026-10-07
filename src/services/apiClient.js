@@ -1,6 +1,7 @@
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '')
 
 let authTokenProvider = null
+let unauthorizedHandler = null
 
 export class ApiError extends Error {
   constructor(message, { status = null, data = null } = {}) {
@@ -16,6 +17,11 @@ export function setAuthTokenProvider(provider) {
     throw new TypeError('The authentication token provider must be a function or null.')
   }
   authTokenProvider = provider
+}
+
+export function setUnauthorizedHandler(handler) {
+  if (handler !== null && typeof handler !== 'function') throw new TypeError('The unauthorized handler must be a function or null.')
+  unauthorizedHandler = handler
 }
 
 const requireBaseUrl = () => {
@@ -65,10 +71,12 @@ export async function request(path, { method = 'GET', body, headers = {}, signal
 
   const data = await responseData(response)
   if (!response.ok) {
-    throw new ApiError(errorMessage(data, `API request failed with status ${response.status}.`), {
+    const error = new ApiError(errorMessage(data, `API request failed with status ${response.status}.`), {
       status: response.status,
       data,
     })
+    if (response.status === 401 && unauthorizedHandler) unauthorizedHandler()
+    throw error
   }
 
   return data
