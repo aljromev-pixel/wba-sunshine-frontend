@@ -66,6 +66,34 @@ export const inventoryService = {
     await this.load()
     return response.data
   },
+  async createProduct(product) {
+    const response = await apiClient.post('/v1/products', product)
+    await this.load()
+    return response.data
+  },
+  async updateProduct(id, product) {
+    const response = await apiClient.put(`/v1/products/${id}`, product)
+    await this.load()
+    return response.data
+  },
+  async deleteProduct(id) {
+    await apiClient.delete(`/v1/products/${id}`)
+    await this.load()
+  },
+  async createBatch(batch) {
+    const response = await apiClient.post('/v1/batches', batch)
+    await this.load()
+    return response.data
+  },
+  async updateBatch(id, batch) {
+    const response = await apiClient.put(`/v1/batches/${id}`, batch)
+    await this.load()
+    return response.data
+  },
+  async deleteBatch(id) {
+    await apiClient.delete(`/v1/batches/${id}`)
+    await this.load()
+  },
   reset() {
     applyState(emptyState)
   },
