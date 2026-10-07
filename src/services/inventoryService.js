@@ -6,6 +6,14 @@ const emptyState = { products: [], batches: [], transactions: [], adjustments: [
 let state = clone(emptyState)
 let listeners = []
 const emit = () => listeners.forEach((listener) => listener(clone(state)))
+const normalizeIds = (inventory) => ({
+  ...inventory,
+  products: inventory.products.map((item) => ({ ...item, id: String(item.id) })),
+  batches: inventory.batches.map((item) => ({ ...item, id: String(item.id), productId: String(item.productId) })),
+  transactions: inventory.transactions.map((item) => ({ ...item, id: String(item.id), productId: String(item.productId) })),
+  adjustments: inventory.adjustments.map((item) => ({ ...item, id: String(item.id), productId: String(item.productId) })),
+  audit: inventory.audit.map((item) => ({ ...item, id: String(item.id) })),
+})
 const applyState = (nextState) => {
   state = { ...emptyState, ...nextState }
   emit()
@@ -25,7 +33,7 @@ export const inventoryService = {
   alerts: () => clone(state.alerts),
   async load() {
     const inventory = await apiClient.get('/v1/inventory')
-    applyState(inventory)
+    applyState(normalizeIds(inventory))
     return clone(state)
   },
   async move({ type, productId, quantity, batchId, reference }) {
