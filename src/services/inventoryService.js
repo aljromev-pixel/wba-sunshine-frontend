@@ -11,7 +11,12 @@ const normalizeIds = (inventory) => ({
   products: inventory.products.map((item) => ({ ...item, id: String(item.id) })),
   batches: inventory.batches.map((item) => ({ ...item, id: String(item.id), productId: String(item.productId) })),
   transactions: inventory.transactions.map((item) => ({ ...item, id: String(item.id), productId: String(item.productId) })),
-  adjustments: inventory.adjustments.map((item) => ({ ...item, id: String(item.id), productId: String(item.productId) })),
+  adjustments: inventory.adjustments.map((item) => ({
+    ...item,
+    id: String(item.id),
+    productId: String(item.productId),
+    requestedById: String(item.requestedById),
+  })),
   audit: inventory.audit.map((item) => ({ ...item, id: String(item.id) })),
 })
 const applyState = (nextState) => {

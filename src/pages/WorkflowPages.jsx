@@ -334,11 +334,13 @@ export function Adjustments() {
                     <small>{item.reason}</small>
                   </div>
                   <div>
-                    {item.status === 'Pending' && approve ? (
+                    {item.status === 'Pending' && approve && item.requestedById !== String(user?.id) ? (
                       <span className="review-actions">
                         <button onClick={() => review(item.id, true)}>Approve</button>
                         <button onClick={() => review(item.id, false)}>Reject</button>
                       </span>
+                    ) : item.status === 'Pending' && approve ? (
+                      <small>Another authorized user must review this request.</small>
                     ) : (
                       <StatusBadge>{item.status}</StatusBadge>
                     )}
