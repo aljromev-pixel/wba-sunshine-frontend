@@ -1,0 +1,83 @@
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '')
+
+let authTokenProvider = null
+
+export class ApiError extends Error {
+  constructor(message, { status = null, data = null } = {}) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.data = data
+  }
+}
+
+export function setAuthTokenProvider(provider) {
+  if (provider !== null && typeof provider !== 'function') {
+    throw new TypeError('The authentication token provider must be a function or null.')
+  }
+  authTokenProvider = provider
+}
+
+const requireBaseUrl = () => {
+  if (!apiBaseUrl) {
+    throw new Error('Missing VITE_API_BASE_URL. Add it to your local .env file before making API requests.')
+  }
+  return apiBaseUrl
+}
+
+const requestUrl = (path) => `${requireBaseUrl()}/${String(path).replace(/^\/+/, '')}`
+
+const responseData = async (response) => {
+  if (response.status === 204) return null
+
+  const contentType = response.headers.get('content-type') || ''
+  if (contentType.includes('application/json')) return response.json()
+
+  const text = await response.text()
+  return text || null
+}
+
+const errorMessage = (data, fallback) => {
+  if (typeof data === 'string' && data) return data
+  if (data?.message) return data.message
+  return fallback
+}
+
+export async function request(path, { method = 'GET', body, headers = {}, signal } = {}) {
+  const token = authTokenProvider ? await authTokenProvider() : null
+  const requestHeaders = { Accept: 'application/json', ...headers }
+
+  if (body !== undefined) requestHeaders['Content-Type'] = 'application/json'
+  if (token) requestHeaders.Authorization = `Bearer ${token}`
+
+  let response
+  try {
+    response = await fetch(requestUrl(path), {
+      method,
+      headers: requestHeaders,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
+    })
+  } catch (error) {
+    if (error.name === 'AbortError') throw error
+    throw new ApiError('Unable to reach the API. Check your network connection and API configuration.')
+  }
+
+  const data = await responseData(response)
+  if (!response.ok) {
+    throw new ApiError(errorMessage(data, `API request failed with status ${response.status}.`), {
+      status: response.status,
+      data,
+    })
+  }
+
+  return data
+}
+
+export const apiClient = {
+  get: (path, options) => request(path, { ...options, method: 'GET' }),
+  post: (path, body, options) => request(path, { ...options, method: 'POST', body }),
+  put: (path, body, options) => request(path, { ...options, method: 'PUT', body }),
+  patch: (path, body, options) => request(path, { ...options, method: 'PATCH', body }),
+  delete: (path, options) => request(path, { ...options, method: 'DELETE' }),
+}
