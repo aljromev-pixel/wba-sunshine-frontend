@@ -27,6 +27,7 @@ try{
    if(registrationMode==='offline')return route.abort('failed');
    if(registrationMode==='limited')return json(429,{message:'Too many registration attempts. Please try again later.'});
    assert.equal(route.request().postDataJSON().department,'Sales');
+   assert.equal(route.request().postDataJSON().name,'Test');assert.equal(route.request().postDataJSON().lastName,'Member');
    return json(201,{token:'registration-test-token',user:{...user,department:'Sales',roleLevel:'Staff'}});
   }
   if(path.endsWith('/auth/login')){signupLoginCalls++;return json(200,{token:'test-only-token',user:{...user,department:'Sales',roleLevel:'Staff'}});}
@@ -45,7 +46,9 @@ try{
  await publicPage.getByRole('heading',{name:'Create your account',exact:true}).waitFor();
  assert.deepEqual(await publicPage.getByRole('combobox',{name:'Staff role'}).locator('option').allTextContents(),['Warehouse Staff','Sales Staff','Purchasing Staff']);
  await publicPage.getByRole('button',{name:'Create account',exact:true}).click();assert.equal(registrationCalls,0);
- await publicPage.getByRole('textbox',{name:'Full name'}).fill('Test Member');
+ assert.equal(await publicPage.getByRole('textbox',{name:'Full name',exact:true}).count(),0);
+ await publicPage.getByRole('textbox',{name:'First name',exact:true}).fill('Test');
+ await publicPage.getByRole('textbox',{name:'Last name',exact:true}).fill('Member');
  await publicPage.getByRole('textbox',{name:'Email address'}).fill('test@example.test');
  await publicPage.locator('input[name="password"]').fill('test-only-password');
  await publicPage.locator('input[name="password_confirmation"]').fill('different-password');
@@ -75,7 +78,7 @@ try{
    if(path.endsWith('/auth/me'))return json(200,{user:staffUser});
    return json(200,inventory);
   },false);
-  await staffSignup.goto('http://127.0.0.1:5197/#/sign-up');await staffSignup.getByRole('textbox',{name:'Full name'}).fill('Test Staff');await staffSignup.getByRole('textbox',{name:'Email address'}).fill('staff@example.test');
+  await staffSignup.goto('http://127.0.0.1:5197/#/sign-up');await staffSignup.getByRole('textbox',{name:'First name',exact:true}).fill('Test');await staffSignup.getByRole('textbox',{name:'Last name',exact:true}).fill('Staff');await staffSignup.getByRole('textbox',{name:'Email address'}).fill('staff@example.test');
   await staffSignup.getByRole('combobox',{name:'Staff role'}).selectOption(department);await staffSignup.locator('input[name="password"]').fill('test-only-password');await staffSignup.locator('input[name="password_confirmation"]').fill('test-only-password');
   await staffSignup.getByRole('button',{name:'Create account',exact:true}).click();await staffSignup.getByRole('heading',{name:dashboard,exact:true}).waitFor();assert.equal(new URL(staffSignup.url()).hash,'#/dashboard');assert.equal(await staffSignup.getByRole('link',{name:/User Management/}).count(),0);
  }
