@@ -73,7 +73,10 @@ export async function request(path, { method = 'GET', body, headers = {}, signal
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
     })
-    if (response.status === 401 && unauthorizedHandler) unauthorizedHandler()
+    if (response.status === 401 && unauthorizedHandler) {
+      const currentToken = authTokenProvider ? await authTokenProvider() : null
+      if (token === currentToken) unauthorizedHandler()
+    }
     const data = await responseData(response)
     if (!response.ok) {
       throw new ApiError(errorMessage(data, `API request failed with status ${response.status}.`), {

@@ -4,7 +4,7 @@ import { apiErrorMessage } from '../utils/apiErrors'
 import { AsyncButton, FormError } from './Shared'
 
 export function Login() {
-  const { login, notice } = useApp()
+  const { login, authError, canRetrySession, retrySession } = useApp()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -41,7 +41,8 @@ export function Login() {
         <form className="compact-form" onSubmit={submit}>
           <label>Email address<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" disabled={submitting} /></label>
           <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" disabled={submitting} /></label>
-          <FormError>{error || (notice?.tone === 'error' ? notice.message : '')}</FormError>
+          <FormError>{error || authError}</FormError>
+          {canRetrySession && <button type="button" className="inline-button" onClick={retrySession} disabled={submitting}>Retry session restoration</button>}
           <AsyncButton className="button primary" loading={submitting} loadingLabel="Signing in…">Sign in</AsyncButton>
         </form>
       </section>

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { authService } from '../services/authService'
 import { setAuthTokenProvider, setUnauthorizedHandler } from '../services/apiClient'
 import { inventoryService } from '../services/inventoryService'
@@ -16,15 +16,19 @@ export function AppProvider({ children }) {
   const [authLoading, setAuthLoading] = useState(() => Boolean(sessionStorage.getItem(tokenKey)))
   const [inventoryLoading, setInventoryLoading] = useState(false)
   const [inventoryError, setInventoryError] = useState('')
+  const [authError, setAuthError] = useState('')
+  const [restoreAttempt, setRestoreAttempt] = useState(0)
+  const sessionVersion = useRef(0)
   const loadInventory = useCallback(async () => {
+    const version = sessionVersion.current
     setInventoryLoading(true)
     setInventoryError('')
     try {
       await inventoryService.load()
     } catch (exception) {
-      setInventoryError(apiErrorMessage(exception))
+      if (version === sessionVersion.current) setInventoryError(apiErrorMessage(exception))
     } finally {
-      setInventoryLoading(false)
+      if (version === sessionVersion.current) setInventoryLoading(false)
     }
   }, [])
 
@@ -32,26 +36,40 @@ export function AppProvider({ children }) {
   useEffect(() => {
     setAuthTokenProvider(() => sessionStorage.getItem(tokenKey))
     setUnauthorizedHandler(() => {
+      sessionVersion.current += 1
       sessionStorage.removeItem(tokenKey)
       setUser(null)
       setAuthLoading(false)
+      setInventoryLoading(false)
+      setAuthError('Your session has expired. Please sign in again.')
       setInventoryError('')
       inventoryService.reset()
     })
     const token = sessionStorage.getItem(tokenKey)
-    if (token) authService
-      .me()
-      .then(async ({ user: authenticatedUser }) => {
+    const controller = new AbortController()
+    const version = sessionVersion.current
+    let active = true
+    if (token) Promise.resolve().then(async () => {
+      if (!active) return
+      try {
+        const { user: authenticatedUser } = await authService.me({ signal: controller.signal })
+        if (!active || version !== sessionVersion.current) return
         setUser({ ...authenticatedUser, initials: initials(authenticatedUser.name) })
+        setAuthError('')
         await loadInventory()
-      })
-      .catch((exception) => setNotice({ message: apiErrorMessage(exception), tone: 'error' }))
-      .finally(() => setAuthLoading(false))
+      } catch (exception) {
+        if (active && exception.name !== 'AbortError' && version === sessionVersion.current) setAuthError(apiErrorMessage(exception))
+      } finally {
+        if (active) setAuthLoading(false)
+      }
+    })
     return () => {
+      active = false
+      controller.abort()
       setAuthTokenProvider(null)
       setUnauthorizedHandler(null)
     }
-  }, [loadInventory])
+  }, [loadInventory, restoreAttempt])
   useEffect(() => {
     if (!notice) return
     const timer = setTimeout(() => setNotice(null), 4500)
@@ -62,6 +80,13 @@ export function AppProvider({ children }) {
     () => ({
       user,
       authLoading,
+      authError,
+      canRetrySession: Boolean(authError && sessionStorage.getItem(tokenKey)),
+      retrySession: () => {
+        setAuthError('')
+        setAuthLoading(true)
+        setRestoreAttempt((attempt) => attempt + 1)
+      },
       inventoryLoading,
       inventoryError,
       retryInventory: loadInventory,
@@ -71,25 +96,32 @@ export function AppProvider({ children }) {
       notify: (message, tone = 'success') => setNotice({ message, tone }),
       notice,
       login: async (credentials) => {
+        const version = ++sessionVersion.current
         const { token, user: authenticatedUser } = await authService.login(credentials)
+        if (version !== sessionVersion.current) return
+        setAuthError('')
         sessionStorage.setItem(tokenKey, token)
         setUser({ ...authenticatedUser, initials: initials(authenticatedUser.name) })
         await loadInventory()
       },
       logout: async () => {
+        const logoutRequest = authService.logout()
+        sessionVersion.current += 1
+        sessionStorage.removeItem(tokenKey)
+        setUser(null)
+        setAuthError('')
+        setAuthLoading(false)
+        setInventoryLoading(false)
+        setInventoryError('')
+        inventoryService.reset()
         try {
-          await authService.logout()
+          await logoutRequest
         } catch {
           // Clear an already-invalid local session too.
-        } finally {
-          sessionStorage.removeItem(tokenKey)
-          setUser(null)
-          setInventoryError('')
-          inventoryService.reset()
         }
       },
     }),
-    [user, authLoading, inventoryLoading, inventoryError, loadInventory, data, notice]
+    [user, authLoading, authError, inventoryLoading, inventoryError, loadInventory, data, notice]
   )
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
