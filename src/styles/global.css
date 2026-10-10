@@ -192,6 +192,7 @@ a {
 }
 .page-stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
   max-width: 1450px;
   margin: auto;
@@ -650,6 +651,7 @@ a {
 }
 .search-field {
   display: flex;
+  min-width: 0;
   align-items: center;
   flex: 1 1 260px;
   gap: 0.4rem;
@@ -661,6 +663,7 @@ a {
 }
 .search-field input {
   width: 100%;
+  min-width: 0;
   padding: 0.62rem 0;
   border: 0;
   outline: 0;
@@ -677,6 +680,7 @@ a {
   font-size: 0.75rem;
 }
 .table-wrap {
+  min-width: 0;
   overflow: auto;
 }
 table {
