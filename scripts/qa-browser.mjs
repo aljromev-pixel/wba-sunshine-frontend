@@ -131,13 +131,15 @@ try{
  console.log('CRUD resets, validation, supported roles, dialog keyboard/pending/failure, and saved-write refresh retry passed.');
  const staffAccount={...user,id:3,name:'Alex Rivera',firstName:'Alex',lastName:'Rivera',department:'Sales',roleLevel:'Staff'};
  const otherAdmin={...user,id:2,name:'Other Administrator'};
- let userWrites=0,userPayload,releaseUserSave;
+ let userWrites=0,userPayload,releaseUserSave,auditRefreshFail=false;
+ const userAudit=[];
  const privacy=await makePage(({path,method,json,route})=>{
   if(path.endsWith('/auth/me'))return json(200,{user});
+  if(path.endsWith('/inventory'))return json(auditRefreshFail?500:200,auditRefreshFail?{message:'Audit refresh unavailable.'}:{...inventory,audit:userAudit});
   if(path.endsWith('/users')&&method==='GET')return json(200,{data:[user,otherAdmin,staffAccount]});
   if(path.endsWith('/users/3')&&method==='PUT'){
    userWrites++;userPayload=route.request().postDataJSON();
-   return new Promise(resolve=>releaseUserSave=()=>{Object.assign(staffAccount,{firstName:userPayload.name,lastName:userPayload.lastName,name:`${userPayload.name} ${userPayload.lastName}`});resolve(json(200,{data:staffAccount}));});
+   return new Promise(resolve=>releaseUserSave=()=>{Object.assign(staffAccount,{firstName:userPayload.name,lastName:userPayload.lastName,name:`${userPayload.name} ${userPayload.lastName}`});userAudit.push({id:userWrites,timestamp:'2030-01-15T12:00:00Z',user:user.name,department:user.department,roleLevel:user.roleLevel,action:'User updated',module:'Users',reference:3,description:staffAccount.name});resolve(json(200,{data:staffAccount}));});
   }
   return json(200,inventory);
  });
@@ -165,8 +167,18 @@ try{
  await newPassword.fill('reset-test-password');await privacy.getByRole('button',{name:'Save user',exact:true}).click();
  await privacy.getByRole('button',{name:'Saving…'}).waitFor();assert.equal(userPayload.password,'reset-test-password');assert.equal(userWrites,2);
  assert.equal(await privacy.getByRole('button',{name:'Show password',exact:true}).isDisabled(),true);
- releaseUserSave();await privacy.getByRole('button',{name:'Change password',exact:true}).waitFor({state:'hidden'});
- await privacy.reload();await privacy.getByRole('row').filter({hasText:'Alex Santos'}).waitFor();
+ releaseUserSave();await privacy.getByRole('heading',{name:'Edit user',exact:true}).waitFor({state:'hidden'});
+ await privacy.goto('http://127.0.0.1:5197/#/audit-trail');await privacy.getByRole('heading',{name:'Audit trail',exact:true}).waitFor();
+ assert.equal(await privacy.getByRole('cell',{name:'User updated',exact:true}).count(),2);
+ await privacy.goto('http://127.0.0.1:5197/#/users');await privacy.getByRole('row').filter({hasText:'Alex Santos'}).getByRole('button',{name:'Edit',exact:true}).click();
+ await privacy.getByRole('textbox',{name:'Last name',exact:true}).fill('Lopez');await privacy.getByRole('button',{name:'Save user',exact:true}).click();
+ await privacy.getByRole('button',{name:'Saving…'}).waitFor();auditRefreshFail=true;releaseUserSave();
+ await privacy.getByRole('heading',{name:'Unable to load inventory'}).waitFor();assert.match(await privacy.getByRole('alert').innerText(),/Your change was saved/);
+ auditRefreshFail=false;await privacy.getByRole('button',{name:'Retry inventory loading'}).click();await privacy.getByRole('row').filter({hasText:'Alex Lopez'}).waitFor();assert.equal(userWrites,3);
+ await privacy.goto('http://127.0.0.1:5197/#/audit-trail');await privacy.getByRole('heading',{name:'Audit trail',exact:true}).waitFor();assert.equal(await privacy.getByRole('cell',{name:'User updated',exact:true}).count(),3);
+ await privacy.goto('http://127.0.0.1:5197/#/users');
+ await privacy.reload();await privacy.getByRole('row').filter({hasText:'Alex Lopez'}).waitFor();
+ console.log('User writes refresh the audit trail; failed audit refresh retries without repeating a write.');
  console.log('Separate names, protected administrator actions, explicit password reset, visibility, cancellation, pending duplicate protection, reload and responsive editor passed.');
  const reviewer={...user,department:'Purchasing',roleLevel:'Manager'};
  const reviews={...inventory,adjustments:[{id:1,productId:1,requestedById:2,requestedBy:'Other',systemQty:2,requestedQty:3,reason:'Count',status:'Pending'},{id:2,productId:1,requestedById:1,requestedBy:'Self',systemQty:2,requestedQty:3,reason:'Count',status:'Pending'}]};
