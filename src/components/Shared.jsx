@@ -20,7 +20,7 @@ export function FormField({ name, feedback, children, ...props }) {
   const messages = feedback.fieldErrors[name]
   return <label {...props}>
     {Children.map(children, (child) => isValidElement(child) && ['input', 'select', 'textarea'].includes(child.type)
-      ? cloneElement(child, { name: child.props.name || name, 'aria-invalid': messages ? true : undefined, 'aria-describedby': messages ? errorId : undefined })
+      ? cloneElement(child, { name: child.props.name || name, 'aria-invalid': messages ? true : undefined, 'aria-describedby': messages ? [child.props['aria-describedby'], errorId].filter(Boolean).join(' ') : child.props['aria-describedby'] })
       : child)}
     {messages && <span id={errorId} className="form-error" role="alert">{[].concat(messages).join(' ')}</span>}
   </label>

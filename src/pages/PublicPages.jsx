@@ -1,7 +1,13 @@
 import { useRef, useState } from 'react'
 import { SunshineBrand } from '../components/Login'
 import { AsyncButton, FormError, FormField, useFormFeedback } from '../components/Shared'
-import { authService } from '../services/authService'
+import { useApp } from '../context/AppContext'
+
+const staffAccess = {
+  Warehouse: 'Receive and issue stock, record transfers and returns, and submit counts and adjustments.',
+  Sales: 'View inventory and alerts and record Stock Out movements.',
+  Purchasing: 'View inventory, batches and alerts and use the reorder calculator.',
+}
 
 export function Landing() {
   return <div className="public-page">
@@ -46,9 +52,9 @@ export function Landing() {
 }
 
 export function SignUp() {
-  const [details, setDetails] = useState({ name: '', email: '', password: '', password_confirmation: '' })
+  const { register } = useApp()
+  const [details, setDetails] = useState({ name: '', email: '', password: '', password_confirmation: '', department: 'Sales' })
   const [submitting, setSubmitting] = useState(false)
-  const [created, setCreated] = useState(false)
   const pending = useRef(false)
   const feedback = useFormFeedback()
   const update = (event) => setDetails((current) => ({ ...current, [event.target.name]: event.target.value }))
@@ -63,9 +69,7 @@ export function SignUp() {
     pending.current = true
     setSubmitting(true)
     try {
-      await authService.register(details)
-      setDetails({ name: '', email: '', password: '', password_confirmation: '' })
-      setCreated(true)
+      await register(details)
     } catch (exception) {
       feedback.handleError(exception)
     } finally {
@@ -78,26 +82,25 @@ export function SignUp() {
       <SunshineBrand />
       <p className="eyebrow">YOUR WORKSPACE STARTS HERE</p>
       <h1>Join the team. Keep inventory connected.</h1>
-      <p>Create an account to access Sunshine with the Sales Staff role.</p>
+      <p>Choose your staff role and start working in Sunshine.</p>
     </section>
     <section className="login-card" aria-labelledby="signup-heading">
       <p className="eyebrow">SUNSHINE ACCESS</p>
-      <h2 id="signup-heading">{created ? 'Your account is ready' : 'Create your account'}</h2>
-      {created ? <>
-        <p role="status">Account created successfully. You can now sign in with your email and password.</p>
-        <a className="button primary" href="#/sign-in">Sign in</a>
-      </> : <>
-        <p>New accounts can view inventory and alerts and record Stock Out movements. An administrator manages changes to your role.</p>
+      <h2 id="signup-heading">Create your account</h2>
+        <p>Select a staff role. You will go directly to your dashboard after creating your account. Supervisor and manager access is assigned by an administrator.</p>
         <form className="compact-form" onSubmit={submit}>
           <FormField name="name" feedback={feedback}>Full name<input value={details.name} onChange={update} required maxLength={255} autoComplete="name" disabled={submitting} /></FormField>
           <FormField name="email" feedback={feedback}>Email address<input type="email" value={details.email} onChange={update} required maxLength={255} autoComplete="email" disabled={submitting} /></FormField>
+          <FormField name="department" feedback={feedback}>Staff role<select value={details.department} onChange={update} required disabled={submitting} aria-describedby="staff-access">
+            {Object.keys(staffAccess).map((department) => <option key={department} value={department}>{department} Staff</option>)}
+          </select></FormField>
+          <p id="staff-access" className="login-note">{staffAccess[details.department]}</p>
           <FormField name="password" feedback={feedback}>Password<input type="password" value={details.password} onChange={update} required minLength={12} maxLength={255} autoComplete="new-password" disabled={submitting} /><small>Use at least 12 characters.</small></FormField>
           <FormField name="password_confirmation" feedback={feedback}>Confirm password<input type="password" value={details.password_confirmation} onChange={update} required minLength={12} maxLength={255} autoComplete="new-password" disabled={submitting} /></FormField>
           <FormError>{feedback.error}</FormError>
           <AsyncButton className="button primary" loading={submitting} loadingLabel="Creating account…">Create account</AsyncButton>
         </form>
         <p className="public-account-link">Already have an account? <a href="#/sign-in">Sign in</a></p>
-      </>}
       <a className="public-back" href="#/">← Back to home</a>
     </section>
   </main>

@@ -79,6 +79,16 @@ export function AppProvider({ children }) {
     return () => clearTimeout(timer)
   }, [notice])
 
+  const authenticate = useCallback(async (action, details) => {
+    const version = ++sessionVersion.current
+    const { token, user: authenticatedUser } = await authService[action](details)
+    if (version !== sessionVersion.current) return
+    setAuthError('')
+    sessionStorage.setItem(tokenKey, token)
+    setUser({ ...authenticatedUser, initials: initials(authenticatedUser.name) })
+    await loadInventory()
+  }, [loadInventory])
+
   const value = useMemo(
     () => ({
       user,
@@ -98,15 +108,8 @@ export function AppProvider({ children }) {
       can: (permission) => can(user, permission),
       notify: (message, tone = 'success') => setNotice({ message, tone }),
       notice,
-      login: async (credentials) => {
-        const version = ++sessionVersion.current
-        const { token, user: authenticatedUser } = await authService.login(credentials)
-        if (version !== sessionVersion.current) return
-        setAuthError('')
-        sessionStorage.setItem(tokenKey, token)
-        setUser({ ...authenticatedUser, initials: initials(authenticatedUser.name) })
-        await loadInventory()
-      },
+      login: (credentials) => authenticate('login', credentials),
+      register: (details) => authenticate('register', details),
       logout: async () => {
         const logoutRequest = authService.logout()
         sessionVersion.current += 1
@@ -124,7 +127,7 @@ export function AppProvider({ children }) {
         }
       },
     }),
-    [user, authLoading, authError, inventoryLoading, inventoryError, loadInventory, data, notice]
+    [user, authLoading, authError, inventoryLoading, inventoryError, loadInventory, authenticate, data, notice]
   )
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
