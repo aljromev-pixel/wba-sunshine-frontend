@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { EmptyState, StatusBadge, formatDate } from '../components/Shared'
+import { AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { inventoryService } from '../services/inventoryService'
 import { fifoBatch, getBatchStatus } from '../utils/inventoryLogic'
 import { PERMISSIONS } from '../utils/permissions'
+import { apiErrorMessage } from '../utils/apiErrors'
 
 const config = {
   'Stock In': {
@@ -24,6 +25,7 @@ export function MovementForm({ type }) {
   const [quantity, setQuantity] = useState('')
   const [reference, setReference] = useState('')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const product = data.products.find((item) => item.id === productId)
   const batches = data.batches.filter((item) => item.productId === productId)
   const suggested = productId ? fifoBatch(data.batches, productId) : null
@@ -35,6 +37,7 @@ export function MovementForm({ type }) {
   const submit = async (event) => {
     event.preventDefault()
     setError('')
+    setSubmitting(true)
     try {
       const transaction = await inventoryService.move({ type, productId, quantity, batchId, reference })
       notify(`${type} recorded as ${transaction.id}.`)
@@ -43,7 +46,9 @@ export function MovementForm({ type }) {
       setQuantity('')
       setReference('')
     } catch (exception) {
-      setError(exception.message)
+      setError(apiErrorMessage(exception))
+    } finally {
+      setSubmitting(false)
     }
   }
   return (
@@ -133,14 +138,10 @@ export function MovementForm({ type }) {
           </div>
         )}
         {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
+          <FormError>{error}</FormError>
         )}
         <div className="form-actions">
-          <button type="submit" className="button primary">
-            {config[type].action}
-          </button>
+          <AsyncButton type="submit" className="button primary" loading={submitting} loadingLabel="Saving…">{config[type].action}</AsyncButton>
         </div>
       </form>
     </section>
@@ -151,18 +152,24 @@ export function CycleCount() {
   const [productId, setProductId] = useState(data.products[0]?.id || '')
   const [counted, setCounted] = useState('')
   const [submitted, setSubmitted] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
   const product = data.products.find((item) => item.id === productId)
   const variance = counted === '' ? null : Number(counted) - product.stock
   const submit = async (event) => {
     event.preventDefault()
     if (counted === '' || Number(counted) < 0) return
+    setError('')
+    setSubmitting(true)
     const reason = `Cycle count: system ${product.stock}, counted ${counted}`
     try {
       const request = await inventoryService.submitAdjustment({ productId, requestedQty: counted, reason })
       setSubmitted(request)
       notify(`Cycle count submitted as ${request.id}; review is required.`)
     } catch (exception) {
-      notify(exception.message, 'error')
+      setError(apiErrorMessage(exception))
+    } finally {
+      setSubmitting(false)
     }
   }
   return (
@@ -219,8 +226,9 @@ export function CycleCount() {
           </article>
         </div>
         <div className="form-actions">
-          <button className="button primary">Submit count result</button>
+          <AsyncButton className="button primary" loading={submitting} loadingLabel="Submitting…">Submit count result</AsyncButton>
         </div>
+        <FormError>{error}</FormError>
         {submitted && (
           <p className="success-note">
             Submitted {submitted.id}. The inventory quantity remains unchanged until an authorized reviewer approves it.
@@ -236,9 +244,14 @@ export function Adjustments() {
   const [requestedQty, setRequestedQty] = useState('')
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [reviewing, setReviewing] = useState(null)
+  const [confirmation, setConfirmation] = useState(null)
   const approve = can(PERMISSIONS.ADJUSTMENT_APPROVE)
   const submit = async (event) => {
     event.preventDefault()
+    setError('')
+    setSubmitting(true)
     try {
       const item = await inventoryService.submitAdjustment({ productId, requestedQty, reason })
       notify(`Adjustment request ${item.id} submitted.`)
@@ -247,16 +260,20 @@ export function Adjustments() {
       setReason('')
       setError('')
     } catch (exception) {
-      setError(exception.message)
+      setError(apiErrorMessage(exception))
+    } finally {
+      setSubmitting(false)
     }
   }
   const review = async (id, decision) => {
-    if (!window.confirm(`${decision ? 'Approve' : 'Reject'} this adjustment request?`)) return
+    setReviewing(id)
     try {
       await inventoryService.reviewAdjustment(id, decision)
       notify(`Adjustment request ${decision ? 'approved and applied' : 'rejected'}.`)
     } catch (exception) {
-      notify(exception.message, 'error')
+      notify(apiErrorMessage(exception), 'error')
+    } finally {
+      setReviewing(null)
     }
   }
   return (
@@ -309,8 +326,8 @@ export function Adjustments() {
               placeholder="Describe the count variance, damage, or other reason"
             />
           </label>
-          {error && <p className="form-error">{error}</p>}
-          <button className="button primary">Submit for review</button>
+          <FormError>{error}</FormError>
+          <AsyncButton className="button primary" loading={submitting} loadingLabel="Submitting…">Submit for review</AsyncButton>
         </form>
         <section className="surface">
           <div className="section-heading">
@@ -336,8 +353,8 @@ export function Adjustments() {
                   <div>
                     {item.status === 'Pending' && approve && item.requestedById !== String(user?.id) ? (
                       <span className="review-actions">
-                        <button onClick={() => review(item.id, true)}>Approve</button>
-                        <button onClick={() => review(item.id, false)}>Reject</button>
+                        <button disabled={reviewing === item.id} onClick={() => setConfirmation({ id: item.id, decision: true })}>Approve</button>
+                        <button disabled={reviewing === item.id} onClick={() => setConfirmation({ id: item.id, decision: false })}>Reject</button>
                       </span>
                     ) : item.status === 'Pending' && approve ? (
                       <small>Another authorized user must review this request.</small>
@@ -352,6 +369,7 @@ export function Adjustments() {
           </div>
         </section>
       </div>
+      {confirmation && <ConfirmDialog title={`${confirmation.decision ? 'Approve' : 'Reject'} adjustment?`} message="This decision will be recorded in the audit trail." confirmLabel={confirmation.decision ? 'Approve' : 'Reject'} onCancel={() => setConfirmation(null)} onConfirm={() => { review(confirmation.id, confirmation.decision); setConfirmation(null) }} />}
     </section>
   )
 }

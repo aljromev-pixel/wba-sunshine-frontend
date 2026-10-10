@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { EmptyState, StatusBadge, formatDate } from '../components/Shared'
+import { AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { inventoryService } from '../services/inventoryService'
 import { daysUntil, fifoBatch, getBatchStatus, getStockStatus } from '../utils/inventoryLogic'
 import { PERMISSIONS } from '../utils/permissions'
+import { apiErrorMessage } from '../utils/apiErrors'
 
 const categories = ['All categories', 'Air Conditioners', 'Smart Home', 'Air Quality', 'Replacement Filters']
 const emptyProduct = { sku: '', name: '', category: '', stock: 0, reorderPoint: 0, capacity: '', supplier: '', leadTime: 0, unit: 'units', monthlySales: 0 }
@@ -11,8 +12,11 @@ const emptyProduct = { sku: '', name: '', category: '', stock: 0, reorderPoint: 
 function ProductForm({ initial, onClose, onSaved, notify }) {
   const [form, setForm] = useState(initial || emptyProduct)
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const submit = async (event) => {
     event.preventDefault()
+    setError('')
+    setSubmitting(true)
     try {
       const payload = { ...form, stock: Number(form.stock), reorderPoint: Number(form.reorderPoint), capacity: form.capacity === '' ? null : Number(form.capacity), leadTime: Number(form.leadTime), monthlySales: Number(form.monthlySales) }
       if (initial) await inventoryService.updateProduct(initial.id, payload)
@@ -20,13 +24,15 @@ function ProductForm({ initial, onClose, onSaved, notify }) {
       notify(`Product ${initial ? 'updated' : 'created'}.`)
       onSaved()
     } catch (exception) {
-      setError(exception.data?.errors ? Object.values(exception.data.errors).flat().join(' ') : exception.message)
+      setError(apiErrorMessage(exception))
+    } finally {
+      setSubmitting(false)
     }
   }
   return <form className="surface compact-form" onSubmit={submit}>
     <div className="section-heading"><div><p className="eyebrow">{initial ? 'EDIT' : 'CREATE'}</p><h2>{initial ? 'Edit product' : 'Add product'}</h2></div><button type="button" className="inline-button" onClick={onClose}>Cancel</button></div>
     <div className="form-grid">{[['sku', 'SKU'], ['name', 'Name'], ['category', 'Category'], ['supplier', 'Supplier'], ['unit', 'Unit'], ['stock', 'Starting stock', 'number'], ['reorderPoint', 'Reorder point', 'number'], ['capacity', 'Capacity', 'number'], ['leadTime', 'Lead time (days)', 'number'], ['monthlySales', 'Monthly sales', 'number']].map(([name, label, type = 'text']) => <label key={name}>{label}<input name={name} type={type} min={type === 'number' ? '0' : undefined} value={form[name]} onChange={(event) => setForm((current) => ({ ...current, [name]: event.target.value }))} required={name !== 'capacity' && name !== 'supplier'} /></label>)}</div>
-    {error && <p className="form-error">{error}</p>}<button className="button primary">{initial ? 'Save product' : 'Create product'}</button>
+    <FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{initial ? 'Save product' : 'Create product'}</AsyncButton>
   </form>
 }
 export function InventoryList() {
@@ -37,14 +43,14 @@ export function InventoryList() {
   const [sort, setSort] = useState('name')
   const [editing, setEditing] = useState(null)
   const [creating, setCreating] = useState(false)
+  const [confirmation, setConfirmation] = useState(null)
   const manage = can(PERMISSIONS.INVENTORY_EDIT)
   const remove = async (item) => {
-    if (!window.confirm(`Delete ${item.name}? This is only allowed when it has no inventory history.`)) return
     try {
       await inventoryService.deleteProduct(item.id)
       notify('Product deleted.')
     } catch (exception) {
-      notify(exception.data?.errors ? Object.values(exception.data.errors).flat().join(' ') : exception.message, 'error')
+      notify(apiErrorMessage(exception), 'error')
     }
   }
   const items = useMemo(
@@ -142,7 +148,7 @@ export function InventoryList() {
                     <a className="row-link" href={`#/inventory/${item.id}`}>
                       Details →
                     </a>
-                    {manage && <><button className="inline-button" onClick={() => { setEditing(item); setCreating(false) }}>Edit</button><button className="inline-button" onClick={() => remove(item)}>Delete</button></>}
+                    {manage && <><button className="inline-button" onClick={() => { setEditing(item); setCreating(false) }}>Edit</button><button className="inline-button" onClick={() => setConfirmation(item)}>Delete</button></>}
                   </td>
                 </tr>
               ))}
@@ -153,6 +159,7 @@ export function InventoryList() {
           )}
         </div>
       </section>
+      {confirmation && <ConfirmDialog title="Delete product?" message={`Delete ${confirmation.name}? Products with inventory history cannot be deleted.`} confirmLabel="Delete product" onCancel={() => setConfirmation(null)} onConfirm={() => { remove(confirmation); setConfirmation(null) }} />}
     </section>
   )
 }
@@ -286,8 +293,11 @@ export function ProductDetails({ productId }) {
 function BatchForm({ initial, products, onClose, onSaved, notify }) {
   const [form, setForm] = useState(initial || { productId: products[0]?.id || '', number: '', quantity: 0, receivedAt: new Date().toISOString().slice(0, 10), expiresAt: '' })
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const submit = async (event) => {
     event.preventDefault()
+    setError('')
+    setSubmitting(true)
     try {
       const payload = { ...form, productId: String(form.productId), quantity: Number(form.quantity), expiresAt: form.expiresAt || null }
       if (initial) await inventoryService.updateBatch(initial.id, payload)
@@ -295,13 +305,15 @@ function BatchForm({ initial, products, onClose, onSaved, notify }) {
       notify(`Batch ${initial ? 'updated' : 'created'}.`)
       onSaved()
     } catch (exception) {
-      setError(exception.data?.errors ? Object.values(exception.data.errors).flat().join(' ') : exception.message)
+      setError(apiErrorMessage(exception))
+    } finally {
+      setSubmitting(false)
     }
   }
   return <form className="surface compact-form" onSubmit={submit}>
     <div className="section-heading"><div><p className="eyebrow">{initial ? 'EDIT' : 'CREATE'}</p><h2>{initial ? 'Edit batch' : 'Add batch'}</h2></div><button type="button" className="inline-button" onClick={onClose}>Cancel</button></div>
     <div className="form-grid">{!initial && <label>Product<select value={form.productId} onChange={(event) => setForm((current) => ({ ...current, productId: event.target.value }))}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>}<label>Batch number<input value={form.number} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} required /></label>{!initial && <label>Quantity<input type="number" min="0" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} required /></label>}<label>Received<input type="date" value={form.receivedAt} onChange={(event) => setForm((current) => ({ ...current, receivedAt: event.target.value }))} required /></label><label>Expiry<input type="date" value={form.expiresAt || ''} onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))} /></label></div>
-    {error && <p className="form-error">{error}</p>}<button className="button primary">{initial ? 'Save batch' : 'Create batch'}</button>
+    <FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{initial ? 'Save batch' : 'Create batch'}</AsyncButton>
   </form>
 }
 export function Batches() {
@@ -310,10 +322,10 @@ export function Batches() {
   const [filter, setFilter] = useState('All batches')
   const [editing, setEditing] = useState(null)
   const [creating, setCreating] = useState(false)
+  const [confirmation, setConfirmation] = useState(null)
   const manage = can(PERMISSIONS.INVENTORY_EDIT)
   const remove = async (batch) => {
-    if (!window.confirm(`Delete ${batch.number}? Only empty batches without movement history can be deleted.`)) return
-    try { await inventoryService.deleteBatch(batch.id); notify('Batch deleted.') } catch (exception) { notify(exception.data?.errors ? Object.values(exception.data.errors).flat().join(' ') : exception.message, 'error') }
+    try { await inventoryService.deleteBatch(batch.id); notify('Batch deleted.') } catch (exception) { notify(apiErrorMessage(exception), 'error') }
   }
   const rows = data.batches.filter((batch) => {
     const product = data.products.find((item) => item.id === batch.productId)
@@ -393,7 +405,7 @@ export function Batches() {
                     <td>
                       <StatusBadge>{getBatchStatus(batch)}</StatusBadge>
                     </td>
-                    {manage && <td><button className="inline-button" onClick={() => { setEditing(batch); setCreating(false) }}>Edit</button><button className="inline-button" onClick={() => remove(batch)}>Delete</button></td>}
+                    {manage && <td><button className="inline-button" onClick={() => { setEditing(batch); setCreating(false) }}>Edit</button><button className="inline-button" onClick={() => setConfirmation(batch)}>Delete</button></td>}
                   </tr>
                 )
               })}
@@ -402,6 +414,7 @@ export function Batches() {
           {!rows.length && <EmptyState title="No matching batches" />}
         </div>
       </section>
+      {confirmation && <ConfirmDialog title="Delete batch?" message={`Delete ${confirmation.number}? Only empty batches without movement history can be deleted.`} confirmLabel="Delete batch" onCancel={() => setConfirmation(null)} onConfirm={() => { remove(confirmation); setConfirmation(null) }} />}
     </section>
   )
 }

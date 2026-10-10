@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
+import { apiErrorMessage } from '../utils/apiErrors'
 
 export function Login() {
   const { login } = useApp()
@@ -14,7 +15,7 @@ export function Login() {
     try {
       await login({ email, password })
     } catch (exception) {
-      setError(exception.data?.errors?.email?.[0] || exception.message)
+      setError(apiErrorMessage(exception))
     } finally {
       setSubmitting(false)
     }

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { EmptyState, StatusBadge, formatDate } from '../components/Shared'
+import { AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { userService } from '../services/userService'
+import { apiErrorMessage } from '../utils/apiErrors'
 import { calculateReorder } from '../utils/inventoryLogic'
 
 export function Alerts() {
@@ -350,12 +351,16 @@ export function Users() {
   const [users, setUsers] = useState([])
   const [form, setForm] = useState(null)
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [confirmation, setConfirmation] = useState(null)
   const load = async () => {
-    try { setUsers(await userService.list()) } catch (exception) { setError(exception.message) }
+    try { setUsers(await userService.list()) } catch (exception) { setError(apiErrorMessage(exception)) }
   }
   useEffect(() => { load() }, [])
   const save = async (event) => {
     event.preventDefault()
+    setError('')
+    setSubmitting(true)
     try {
       const payload = { ...form }
       if (!payload.password) delete payload.password
@@ -363,11 +368,10 @@ export function Users() {
       else await userService.create(payload)
       notify(`User ${form.id ? 'updated' : 'created'}.`)
       setForm(null); setError(''); await load()
-    } catch (exception) { setError(exception.data?.errors ? Object.values(exception.data.errors).flat().join(' ') : exception.message) }
+    } catch (exception) { setError(apiErrorMessage(exception)) } finally { setSubmitting(false) }
   }
   const remove = async (user) => {
-    if (!window.confirm(`Delete ${user.name}?`)) return
-    try { await userService.remove(user.id); notify('User deleted.'); await load() } catch (exception) { notify(exception.data?.errors ? Object.values(exception.data.errors).flat().join(' ') : exception.message, 'error') }
+    try { await userService.remove(user.id); notify('User deleted.'); await load() } catch (exception) { notify(apiErrorMessage(exception), 'error') }
   }
   return (
     <section className="page-stack">
@@ -379,7 +383,7 @@ export function Users() {
         </div>
         <button className="button primary" onClick={() => setForm({ name: '', email: '', password: '', department: 'Warehouse', roleLevel: 'Staff' })}>Add user</button>
       </div>
-      {form && <form className="surface compact-form" onSubmit={save}><div className="section-heading"><div><p className="eyebrow">{form.id ? 'EDIT' : 'CREATE'}</p><h2>{form.id ? 'Edit user' : 'Add user'}</h2></div><button type="button" className="inline-button" onClick={() => { setForm(null); setError('') }}>Cancel</button></div><div className="form-grid"><label>Name<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required /></label><label>Email<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required /></label><label>Password {form.id && '(leave blank to keep)'}<input type="password" minLength="8" value={form.password || ''} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required={!form.id} /></label><label>Department<select value={form.department} onChange={(event) => setForm((current) => ({ ...current, department: event.target.value }))}>{['Warehouse', 'Sales', 'Purchasing', 'Administration'].map((value) => <option key={value}>{value}</option>)}</select></label><label>Role level<select value={form.roleLevel} onChange={(event) => setForm((current) => ({ ...current, roleLevel: event.target.value }))}>{['Staff', 'Supervisor', 'Manager'].map((value) => <option key={value}>{value}</option>)}</select></label></div>{error && <p className="form-error">{error}</p>}<button className="button primary">{form.id ? 'Save user' : 'Create user'}</button></form>}
+      {form && <form className="surface compact-form" onSubmit={save}><div className="section-heading"><div><p className="eyebrow">{form.id ? 'EDIT' : 'CREATE'}</p><h2>{form.id ? 'Edit user' : 'Add user'}</h2></div><button type="button" className="inline-button" onClick={() => { setForm(null); setError('') }} disabled={submitting}>Cancel</button></div><div className="form-grid"><label>Name<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required disabled={submitting} /></label><label>Email<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required disabled={submitting} /></label><label>Password {form.id && '(leave blank to keep)'}<input type="password" minLength="8" value={form.password || ''} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required={!form.id} disabled={submitting} /></label><label>Department<select value={form.department} onChange={(event) => setForm((current) => ({ ...current, department: event.target.value }))} disabled={submitting}>{['Warehouse', 'Sales', 'Purchasing', 'Administration'].map((value) => <option key={value}>{value}</option>)}</select></label><label>Role level<select value={form.roleLevel} onChange={(event) => setForm((current) => ({ ...current, roleLevel: event.target.value }))} disabled={submitting}>{['Staff', 'Supervisor', 'Manager'].map((value) => <option key={value}>{value}</option>)}</select></label></div><FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{form.id ? 'Save user' : 'Create user'}</AsyncButton></form>}
       <section className="surface">
         <div className="table-wrap">
           <table>
@@ -401,7 +405,7 @@ export function Users() {
                   <td>{u.roleLevel}</td>
                   <td>
                     <button className="inline-button" onClick={() => setForm({ ...u, password: '' })}>Edit</button>
-                    <button className="inline-button" onClick={() => remove(u)}>Delete</button>
+                    <button className="inline-button" onClick={() => setConfirmation(u)}>Delete</button>
                   </td>
                 </tr>
               ))}
@@ -409,6 +413,7 @@ export function Users() {
           </table>
         </div>
       </section>
+      {confirmation && <ConfirmDialog title="Delete user?" message={`Delete ${confirmation.name}? This cannot be undone.`} confirmLabel="Delete user" onCancel={() => setConfirmation(null)} onConfirm={() => { remove(confirmation); setConfirmation(null) }} />}
     </section>
   )
 }
