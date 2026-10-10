@@ -104,6 +104,27 @@ try{
  await empty.goto('http://127.0.0.1:5197/#/reorder-calculator');await empty.getByRole('heading',{name:'No products to calculate'}).waitFor();
  await page.goto('http://127.0.0.1:5197/#/alerts');await page.getByRole('heading',{name:'Inventory alerts'}).waitFor();await page.getByRole('heading',{name:'No alerts match this view'}).waitFor();
  assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).backgroundColor),'rgb(5, 11, 43)');
+ let reportLoads=0;
+ const reportInventory={...inventory,products:products.map((item,index)=>({...item,stock:index===0?5:20,reorderPoint:10,monthlySales:60,leadTime:7})),transactions:[{id:11,productId:1,type:'Stock Out',quantity:3,reference:'SO-QA',date:'2030-01-15T12:00:00Z',status:'Completed'}],adjustments:[{id:21,productId:1,systemQty:10,requestedQty:8,reason:'Cycle count: system 10, counted 8',status:'Approved',requestedById:1},{id:22,productId:2,systemQty:10,requestedQty:10,reason:'Manual adjustment',status:'Pending',requestedById:1}]};
+ const reporting=await makePage(({path,method,json})=>{assert.equal(method,'GET');if(path.endsWith('/auth/me'))return json(200,{user});reportLoads++;return json(200,reportInventory);});
+ const expiryDates=await reporting.evaluate(()=>[0,30,31,-1].map(days=>{const date=new Date();date.setDate(date.getDate()+days);return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}));
+ reportInventory.batches=expiryDates.map((expiresAt,index)=>({id:31+index,productId:1,number:`REPORT-${index}`,quantity:2,receivedAt:expiryDates[3],expiresAt}));
+ await reporting.goto('http://127.0.0.1:5197/#/reports');await reporting.getByRole('heading',{name:'Inventory reports',exact:true}).waitFor();
+ assert.match(await reporting.locator('main').innerText(),/calculated in your browser.*Laravel inventory data/);
+ const reportSelect=reporting.getByRole('combobox',{name:'Report type'});
+ for(const [name,count] of [['Inventory Summary',2],['Stock Movement Report',1],['Low Stock Report',1],['Expiring Stock Report',2],['Inventory Discrepancy Report',1],['Cycle Count Report',1],['Adjustment Report',2],['Seasonal Reorder Report',2]]){
+  await reportSelect.selectOption(name);assert.equal(await reporting.locator('tbody tr').count(),count,name);
+ }
+ await reporting.getByRole('spinbutton',{name:'Demand multiplier'}).fill('2');await reporting.getByRole('spinbutton',{name:'Safety stock percent'}).fill('10');
+ assert.equal(await reporting.locator('tbody tr').first().locator('td').nth(6).innerText(),'30');
+ await reporting.getByRole('spinbutton',{name:'Demand multiplier'}).fill('-1');await reporting.getByRole('alert').waitFor();assert.equal(await reporting.getByRole('button',{name:'Print report',exact:true}).isDisabled(),true);
+ await reporting.getByRole('spinbutton',{name:'Demand multiplier'}).fill('2');
+ await reporting.evaluate(()=>{window.print=()=>{window.__qaPrintCalled=true;};});await reporting.getByRole('button',{name:'Print report',exact:true}).click();assert.equal(await reporting.evaluate(()=>window.__qaPrintCalled),true);
+ await reportSelect.selectOption('Inventory Summary');reportInventory.products[0].stock=99;await reporting.getByRole('button',{name:'Refresh report data'}).click();await reporting.getByRole('heading',{name:'Inventory reports',exact:true}).waitFor();assert.equal(await reporting.locator('tbody tr').first().locator('td').nth(2).innerText(),'99');assert.equal(reportLoads,2);
+ for(const width of [1440,390]){await reporting.setViewportSize({width,height:900});await reportSelect.selectOption('Seasonal Reorder Report');assert.equal(await reporting.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`Reports overflow at ${width}`);}
+ await empty.goto('http://127.0.0.1:5197/#/reports');await empty.getByRole('heading',{name:'No data for this report'}).waitFor();
+ await sales.goto('http://127.0.0.1:5197/#/reports');await sales.getByRole('heading',{name:'This module is not part of your assigned workspace.'}).waitFor();
+ console.log('All eight reports, explicit source, API refresh, assumptions, empty/restricted states, print and responsive layout passed.');
  console.log('Unknown routes, API-backed reorder defaults, empty calculator, API alerts, and theme checks passed.');
  console.log('401/403/404/500/network, forbidden route, and desktop/mobile navigation and overflow checks passed.');
  assert.deepEqual(errors,[]);console.log('Reviewer matrix, self-review prevention, empty Cycle Count, and login field errors passed. No browser exceptions.');
