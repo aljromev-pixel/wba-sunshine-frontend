@@ -9,7 +9,7 @@ const categories = ['All categories', 'Air Conditioners', 'Smart Home', 'Air Qua
 const emptyProduct = { sku: '', name: '', category: '', stock: 0, reorderPoint: 0, capacity: '', supplier: '', leadTime: 0, unit: 'units', monthlySales: 0 }
 
 function ProductForm({ initial, onClose, onSaved, notify, onBusyChange }) {
-  const [form, setForm] = useState(initial ? { ...initial, capacity: initial.capacity ?? '' } : emptyProduct)
+  const [form, setForm] = useState(initial ? { ...initial, capacity: initial.capacity ?? '', supplier: initial.supplier ?? '' } : emptyProduct)
   const feedback = useFormFeedback()
   const { error, setError, handleError } = feedback
   const [submitting, setSubmitting] = useState(false)

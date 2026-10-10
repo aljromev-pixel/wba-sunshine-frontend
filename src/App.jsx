@@ -76,13 +76,13 @@ export default function App() {
     ) : path === '/batches' ? (
       <Batches />
     ) : path === '/stock-in' ? (
-      <MovementForm type="Stock In" />
+      <MovementForm key="Stock In" type="Stock In" />
     ) : path === '/stock-out' ? (
-      <MovementForm type="Stock Out" />
+      <MovementForm key="Stock Out" type="Stock Out" />
     ) : path === '/transfers' ? (
-      <MovementForm type="Transfer" />
+      <MovementForm key="Transfer" type="Transfer" />
     ) : path === '/returns' ? (
-      <MovementForm type="Return" />
+      <MovementForm key="Return" type="Return" />
     ) : path === '/cycle-count' ? (
       <CycleCount />
     ) : path === '/adjustments' ? (
