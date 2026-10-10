@@ -48,6 +48,12 @@ try{
  await publicPage.getByRole('button',{name:'Create account',exact:true}).click();assert.equal(registrationCalls,0);
  assert.equal(await publicPage.getByRole('textbox',{name:'Full name',exact:true}).count(),0);
  await publicPage.getByRole('textbox',{name:'First name',exact:true}).fill('Test');
+ await publicPage.getByRole('textbox',{name:'Email address'}).fill('test@example.test');
+ await publicPage.locator('input[name="password"]').fill('test-only-password');await publicPage.locator('input[name="password_confirmation"]').fill('test-only-password');
+ await publicPage.getByRole('button',{name:'Create account',exact:true}).click();assert.equal(registrationCalls,0);
+ for(const control of await publicPage.locator('form input, form select').all())assert.equal(await control.getAttribute('required'),'');
+ await publicPage.getByRole('textbox',{name:'Last name',exact:true}).fill('   ');await publicPage.getByRole('button',{name:'Create account',exact:true}).click();
+ await publicPage.getByRole('alert').filter({hasText:'Enter your first name and last name.'}).waitFor();assert.equal(registrationCalls,0);
  await publicPage.getByRole('textbox',{name:'Last name',exact:true}).fill('Member');
  await publicPage.getByRole('textbox',{name:'Email address'}).fill('test@example.test');
  await publicPage.locator('input[name="password"]').fill('test-only-password');

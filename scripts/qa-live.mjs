@@ -23,6 +23,7 @@ const env = {
   APP_KEY: `base64:${randomBytes(32).toString('base64')}`,
   DB_CONNECTION: 'sqlite', DB_DATABASE: database, DB_URL: '',
   CACHE_STORE: 'array', SESSION_DRIVER: 'array', QUEUE_CONNECTION: 'sync',
+  CORS_ALLOWED_ORIGINS: 'http://127.0.0.1:5199',
   BCRYPT_ROUNDS: '4', QA_PASSWORD: password, QA_BACKEND_PATH: backend,
 }
 execFileSync('php', ['artisan', 'migrate', '--force', '--no-interaction'], { cwd: backend, env, stdio: 'pipe' })
@@ -59,6 +60,19 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
   page.setDefaultTimeout(15000)
   page.on('pageerror', error => errors.push(error.message))
+  const signup = await browser.newPage({ viewport: { width: 390, height: 900 } })
+  signup.setDefaultTimeout(15000)
+  signup.on('pageerror', error => errors.push(error.message))
+  await signup.goto('http://127.0.0.1:5199/#/sign-up')
+  for (const [name, value] of Object.entries({ name: 'QA Registered', lastName: 'Member', email: 'qa.registered@example.test', password, password_confirmation: password })) await signup.locator(`input[name="${name}"]`).fill(value)
+  await signup.getByRole('button', { name: 'Create account', exact: true }).click()
+  try {
+    await signup.getByRole('heading', { name: 'Reliable answers for every customer.', exact: true }).waitFor()
+  } catch (error) {
+    console.error('Sign-up failure details:', await signup.getByRole('alert').allTextContents())
+    throw error
+  }
+  await signup.close()
   await page.goto('http://127.0.0.1:5199/#/inventory')
   await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor()
   await page.locator('input[name="email"]').fill('administration.manager@example.test')
@@ -67,6 +81,25 @@ try {
   await page.locator('input[name="email"][aria-invalid="true"]').waitFor()
   await page.locator('input[name="password"]').fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await page.getByRole('button', { name: 'Add product', exact: true }).waitFor()
+  const adminToken = await page.evaluate(() => sessionStorage.getItem('wba-auth-token'))
+  const registered = (await api(adminToken, '/users')).data.data.find(account => account.email === 'qa.registered@example.test')
+  assert.equal(registered.firstName, 'QA Registered')
+  assert.equal(registered.lastName, 'Member')
+  assert.equal(registered.name, 'QA Registered Member')
+  await page.goto('http://127.0.0.1:5199/#/users')
+  await page.getByRole('row').filter({ hasText: 'QA Registered Member' }).getByRole('button', { name: 'Edit', exact: true }).click()
+  assert.equal(await page.locator('input[name="name"]').inputValue(), 'QA Registered')
+  assert.equal(await page.locator('input[name="lastName"]').inputValue(), 'Member')
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.goto('http://127.0.0.1:5199/#/audit-trail')
+  const registrationAudit = page.getByRole('row').filter({ hasText: 'Account registered' })
+  await registrationAudit.waitFor()
+  assert.match(await registrationAudit.innerText(), /QA Registered Member/)
+  await page.reload()
+  await registrationAudit.waitFor()
+  await page.goto('http://127.0.0.1:5199/#/inventory')
+  console.log('Real staff sign-up persists both names in the admin editor and registration audit after refresh.')
   await page.getByRole('button', { name: 'Add product', exact: true }).click()
   for (const [name, value] of Object.entries({ sku: 'QA-LIVE', name: 'QA Live Product', category: 'Smart Home' })) await page.locator(`input[name="${name}"]`).fill(value)
   await page.getByRole('button', { name: 'Create product', exact: true }).click()
@@ -143,12 +176,12 @@ try {
   }
   await page.goto('http://127.0.0.1:5199/#/users')
   await page.getByRole('button', { name: 'Add user', exact: true }).click()
-  for (const [name, value] of Object.entries({ name: 'QA Temporary User', email: 'qa.temp@example.test', password })) await page.locator(`input[name="${name}"]`).fill(value)
+  for (const [name, value] of Object.entries({ name: 'QA Temporary', lastName: 'User', email: 'qa.temp@example.test', password })) await page.locator(`input[name="${name}"]`).fill(value)
   await page.getByRole('button', { name: 'Create user', exact: true }).click()
   const row = page.getByRole('row').filter({ hasText: 'QA Temporary User' })
   await row.waitFor()
   await row.getByRole('button', { name: 'Edit', exact: true }).click()
-  await page.locator('input[name="name"]').fill('QA Edited User')
+  await page.locator('input[name="name"]').fill('QA Edited')
   await page.locator('select[name="department"]').selectOption('Sales')
   await page.locator('select[name="roleLevel"]').selectOption('Supervisor')
   await page.getByRole('button', { name: 'Save user', exact: true }).click()
