@@ -49,37 +49,48 @@ const errorMessage = (data, fallback) => {
   return fallback
 }
 
-export async function request(path, { method = 'GET', body, headers = {}, signal } = {}) {
+export async function request(path, { method = 'GET', body, headers = {}, signal, timeoutMs = 15000 } = {}) {
+  const url = requestUrl(path)
   const token = authTokenProvider ? await authTokenProvider() : null
   const requestHeaders = { Accept: 'application/json', ...headers }
 
   if (body !== undefined) requestHeaders['Content-Type'] = 'application/json'
   if (token) requestHeaders.Authorization = `Bearer ${token}`
 
-  let response
+  const controller = new AbortController()
+  let timedOut = false
+  const cancel = () => controller.abort()
+  if (signal?.aborted) cancel()
+  else signal?.addEventListener('abort', cancel, { once: true })
+  const timer = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, timeoutMs)
   try {
-    response = await fetch(requestUrl(path), {
+    const response = await fetch(url, {
       method,
       headers: requestHeaders,
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal,
-    })
-  } catch (error) {
-    if (error.name === 'AbortError') throw error
-    throw new ApiError('Unable to reach the API. Check your network connection and API configuration.')
-  }
-
-  const data = await responseData(response)
-  if (!response.ok) {
-    const error = new ApiError(errorMessage(data, `API request failed with status ${response.status}.`), {
-      status: response.status,
-      data,
+      signal: controller.signal,
     })
     if (response.status === 401 && unauthorizedHandler) unauthorizedHandler()
-    throw error
+    const data = await responseData(response)
+    if (!response.ok) {
+      throw new ApiError(errorMessage(data, `API request failed with status ${response.status}.`), {
+        status: response.status,
+        data,
+      })
+    }
+    return data
+  } catch (error) {
+    if (timedOut) throw new ApiError('The API request timed out. Please try again.')
+    if (error instanceof ApiError || error.name === 'AbortError') throw error
+    if (error instanceof SyntaxError) throw new ApiError('The API returned an invalid response. Please try again.')
+    throw new ApiError('Unable to reach the API. Check your network connection and API configuration.')
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener('abort', cancel)
   }
-
-  return data
 }
 
 export const apiClient = {
