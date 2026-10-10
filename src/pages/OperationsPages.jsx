@@ -353,12 +353,17 @@ export function Users() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [confirmation, setConfirmation] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const load = async () => {
-    try { setUsers(await userService.list()) } catch (exception) { setError(apiErrorMessage(exception)) }
+    setLoading(true)
+    setLoadError('')
+    try { setUsers(await userService.list()) } catch (exception) { setLoadError(apiErrorMessage(exception)) } finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
   const save = async (event) => {
     event.preventDefault()
+    if (submitting) return
     setError('')
     setSubmitting(true)
     try {
@@ -385,7 +390,10 @@ export function Users() {
       </div>
       {form && <form className="surface compact-form" onSubmit={save}><div className="section-heading"><div><p className="eyebrow">{form.id ? 'EDIT' : 'CREATE'}</p><h2>{form.id ? 'Edit user' : 'Add user'}</h2></div><button type="button" className="inline-button" onClick={() => { setForm(null); setError('') }} disabled={submitting}>Cancel</button></div><div className="form-grid"><label>Name<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required disabled={submitting} /></label><label>Email<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required disabled={submitting} /></label><label>Password {form.id && '(leave blank to keep)'}<input type="password" minLength="8" value={form.password || ''} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required={!form.id} disabled={submitting} /></label><label>Department<select value={form.department} onChange={(event) => setForm((current) => ({ ...current, department: event.target.value }))} disabled={submitting}>{['Warehouse', 'Sales', 'Purchasing', 'Administration'].map((value) => <option key={value}>{value}</option>)}</select></label><label>Role level<select value={form.roleLevel} onChange={(event) => setForm((current) => ({ ...current, roleLevel: event.target.value }))} disabled={submitting}>{['Staff', 'Supervisor', 'Manager'].map((value) => <option key={value}>{value}</option>)}</select></label></div><FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{form.id ? 'Save user' : 'Create user'}</AsyncButton></form>}
       <section className="surface">
-        <div className="table-wrap">
+        {loading && <p role="status">Loading users…</p>}
+        <FormError>{loadError}</FormError>
+        {loadError && <AsyncButton type="button" className="button primary" loading={loading} loadingLabel="Retrying…" onClick={load}>Retry loading users</AsyncButton>}
+        <div className="table-wrap" aria-busy={loading}>
           <table>
             <thead>
               <tr>
@@ -411,9 +419,10 @@ export function Users() {
               ))}
             </tbody>
           </table>
+          {!loading && !loadError && !users.length && <EmptyState title="No users found" />}
         </div>
       </section>
-      {confirmation && <ConfirmDialog title="Delete user?" message={`Delete ${confirmation.name}? This cannot be undone.`} confirmLabel="Delete user" onCancel={() => setConfirmation(null)} onConfirm={() => { remove(confirmation); setConfirmation(null) }} />}
+      {confirmation && <ConfirmDialog title="Delete user?" message={`Delete ${confirmation.name}? This cannot be undone.`} confirmLabel="Delete user" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
     </section>
   )
 }

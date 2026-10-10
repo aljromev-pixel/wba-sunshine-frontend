@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { apiErrorMessage } from '../utils/apiErrors'
+import { AsyncButton, FormError } from './Shared'
 
 export function Login() {
-  const { login } = useApp()
+  const { login, notice } = useApp()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const submit = async (event) => {
     event.preventDefault()
+    if (submitting) return
     setError('')
     setSubmitting(true)
     try {
@@ -37,10 +39,10 @@ export function Login() {
         <h2 id="login-heading">Sign in to your workspace</h2>
         <p>Use your assigned email address and password to continue.</p>
         <form className="compact-form" onSubmit={submit}>
-          <label>Email address<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" /></label>
-          <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" /></label>
-          {error && <p className="form-error" role="alert">{error}</p>}
-          <button className="button primary" disabled={submitting}>{submitting ? 'Signing in…' : 'Sign in'}</button>
+          <label>Email address<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" disabled={submitting} /></label>
+          <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" disabled={submitting} /></label>
+          <FormError>{error || (notice?.tone === 'error' ? notice.message : '')}</FormError>
+          <AsyncButton className="button primary" loading={submitting} loadingLabel="Signing in…">Sign in</AsyncButton>
         </form>
       </section>
     </main>

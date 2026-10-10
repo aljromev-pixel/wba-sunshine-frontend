@@ -1,3 +1,5 @@
+import { useRef, useState } from 'react'
+
 export function EmptyState({ title = 'Nothing to show', text = 'There are no records that match this view.' }) {
   return (
     <div className="empty-state">
@@ -26,13 +28,32 @@ export function AsyncButton({ loading, children, loadingLabel = 'Saving…', ...
   return <button {...props} disabled={loading || props.disabled}>{loading ? loadingLabel : children}</button>
 }
 export function ConfirmDialog({ title = 'Confirm action', message, confirmLabel = 'Confirm', onCancel, onConfirm }) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const pending = useRef(false)
+  const confirm = async () => {
+    if (pending.current) return
+    pending.current = true
+    setLoading(true)
+    setError('')
+    try {
+      await onConfirm()
+      onCancel()
+    } catch (exception) {
+      setError(exception.message || 'Unable to complete this action. Please try again.')
+    } finally {
+      pending.current = false
+      setLoading(false)
+    }
+  }
   return <div className="confirm-overlay" role="presentation">
     <section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
       <h2 id="confirm-title">{title}</h2>
       <p>{message}</p>
+      <FormError>{error}</FormError>
       <div className="form-actions">
-        <button type="button" className="inline-button" onClick={onCancel}>Cancel</button>
-        <button type="button" className="button primary" onClick={onConfirm}>{confirmLabel}</button>
+        <button type="button" className="inline-button" onClick={onCancel} disabled={loading}>Cancel</button>
+        <AsyncButton type="button" className="button primary" onClick={confirm} loading={loading} loadingLabel="Processing…">{confirmLabel}</AsyncButton>
       </div>
     </section>
   </div>

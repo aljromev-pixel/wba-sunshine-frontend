@@ -15,6 +15,7 @@ function ProductForm({ initial, onClose, onSaved, notify }) {
   const [submitting, setSubmitting] = useState(false)
   const submit = async (event) => {
     event.preventDefault()
+    if (submitting) return
     setError('')
     setSubmitting(true)
     try {
@@ -30,8 +31,8 @@ function ProductForm({ initial, onClose, onSaved, notify }) {
     }
   }
   return <form className="surface compact-form" onSubmit={submit}>
-    <div className="section-heading"><div><p className="eyebrow">{initial ? 'EDIT' : 'CREATE'}</p><h2>{initial ? 'Edit product' : 'Add product'}</h2></div><button type="button" className="inline-button" onClick={onClose}>Cancel</button></div>
-    <div className="form-grid">{[['sku', 'SKU'], ['name', 'Name'], ['category', 'Category'], ['supplier', 'Supplier'], ['unit', 'Unit'], ['stock', 'Starting stock', 'number'], ['reorderPoint', 'Reorder point', 'number'], ['capacity', 'Capacity', 'number'], ['leadTime', 'Lead time (days)', 'number'], ['monthlySales', 'Monthly sales', 'number']].map(([name, label, type = 'text']) => <label key={name}>{label}<input name={name} type={type} min={type === 'number' ? '0' : undefined} value={form[name]} onChange={(event) => setForm((current) => ({ ...current, [name]: event.target.value }))} required={name !== 'capacity' && name !== 'supplier'} /></label>)}</div>
+    <div className="section-heading"><div><p className="eyebrow">{initial ? 'EDIT' : 'CREATE'}</p><h2>{initial ? 'Edit product' : 'Add product'}</h2></div><button type="button" className="inline-button" onClick={onClose} disabled={submitting}>Cancel</button></div>
+    <div className="form-grid">{[['sku', 'SKU'], ['name', 'Name'], ['category', 'Category'], ['supplier', 'Supplier'], ['unit', 'Unit'], ['stock', 'Starting stock', 'number'], ['reorderPoint', 'Reorder point', 'number'], ['capacity', 'Capacity', 'number'], ['leadTime', 'Lead time (days)', 'number'], ['monthlySales', 'Monthly sales', 'number']].map(([name, label, type = 'text']) => <label key={name}>{label}<input disabled={submitting} name={name} type={type} min={type === 'number' ? '0' : undefined} value={form[name]} onChange={(event) => setForm((current) => ({ ...current, [name]: event.target.value }))} required={name !== 'capacity' && name !== 'supplier'} /></label>)}</div>
     <FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{initial ? 'Save product' : 'Create product'}</AsyncButton>
   </form>
 }
@@ -159,7 +160,7 @@ export function InventoryList() {
           )}
         </div>
       </section>
-      {confirmation && <ConfirmDialog title="Delete product?" message={`Delete ${confirmation.name}? Products with inventory history cannot be deleted.`} confirmLabel="Delete product" onCancel={() => setConfirmation(null)} onConfirm={() => { remove(confirmation); setConfirmation(null) }} />}
+      {confirmation && <ConfirmDialog title="Delete product?" message={`Delete ${confirmation.name}? Products with inventory history cannot be deleted.`} confirmLabel="Delete product" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
     </section>
   )
 }
@@ -296,6 +297,7 @@ function BatchForm({ initial, products, onClose, onSaved, notify }) {
   const [submitting, setSubmitting] = useState(false)
   const submit = async (event) => {
     event.preventDefault()
+    if (submitting) return
     setError('')
     setSubmitting(true)
     try {
@@ -311,8 +313,8 @@ function BatchForm({ initial, products, onClose, onSaved, notify }) {
     }
   }
   return <form className="surface compact-form" onSubmit={submit}>
-    <div className="section-heading"><div><p className="eyebrow">{initial ? 'EDIT' : 'CREATE'}</p><h2>{initial ? 'Edit batch' : 'Add batch'}</h2></div><button type="button" className="inline-button" onClick={onClose}>Cancel</button></div>
-    <div className="form-grid">{!initial && <label>Product<select value={form.productId} onChange={(event) => setForm((current) => ({ ...current, productId: event.target.value }))}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>}<label>Batch number<input value={form.number} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} required /></label>{!initial && <label>Quantity<input type="number" min="0" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} required /></label>}<label>Received<input type="date" value={form.receivedAt} onChange={(event) => setForm((current) => ({ ...current, receivedAt: event.target.value }))} required /></label><label>Expiry<input type="date" value={form.expiresAt || ''} onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))} /></label></div>
+    <div className="section-heading"><div><p className="eyebrow">{initial ? 'EDIT' : 'CREATE'}</p><h2>{initial ? 'Edit batch' : 'Add batch'}</h2></div><button type="button" className="inline-button" onClick={onClose} disabled={submitting}>Cancel</button></div>
+    <div className="form-grid">{!initial && <label>Product<select disabled={submitting} value={form.productId} onChange={(event) => setForm((current) => ({ ...current, productId: event.target.value }))}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>}<label>Batch number<input disabled={submitting} value={form.number} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} required /></label>{!initial && <label>Quantity<input disabled={submitting} type="number" min="0" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} required /></label>}<label>Received<input disabled={submitting} type="date" value={form.receivedAt} onChange={(event) => setForm((current) => ({ ...current, receivedAt: event.target.value }))} required /></label><label>Expiry<input disabled={submitting} type="date" value={form.expiresAt || ''} onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))} /></label></div>
     <FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{initial ? 'Save batch' : 'Create batch'}</AsyncButton>
   </form>
 }
@@ -414,7 +416,7 @@ export function Batches() {
           {!rows.length && <EmptyState title="No matching batches" />}
         </div>
       </section>
-      {confirmation && <ConfirmDialog title="Delete batch?" message={`Delete ${confirmation.number}? Only empty batches without movement history can be deleted.`} confirmLabel="Delete batch" onCancel={() => setConfirmation(null)} onConfirm={() => { remove(confirmation); setConfirmation(null) }} />}
+      {confirmation && <ConfirmDialog title="Delete batch?" message={`Delete ${confirmation.number}? Only empty batches without movement history can be deleted.`} confirmLabel="Delete batch" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
     </section>
   )
 }
