@@ -159,7 +159,7 @@ export function InventoryList() {
           )}
         </div>
       </section>
-      {confirmation && <ConfirmDialog title="Delete product?" message={`Delete ${confirmation.name}? Products with inventory history cannot be deleted.`} confirmLabel="Delete product" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
+      {confirmation && <ConfirmDialog tone="danger" title="Delete product?" message={`Delete ${confirmation.name}? Products with inventory history cannot be deleted.`} confirmLabel="Delete product" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
     </section>
   )
 }
@@ -419,7 +419,7 @@ export function Batches() {
           {!rows.length && <EmptyState title="No matching batches" />}
         </div>
       </section>
-      {confirmation && <ConfirmDialog title="Delete batch?" message={`Delete ${confirmation.number}? Only empty batches without movement history can be deleted.`} confirmLabel="Delete batch" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
+      {confirmation && <ConfirmDialog tone="danger" title="Delete batch?" message={`Delete ${confirmation.number}? Only empty batches without movement history can be deleted.`} confirmLabel="Delete batch" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
     </section>
   )
 }

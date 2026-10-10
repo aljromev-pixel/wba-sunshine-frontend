@@ -306,7 +306,7 @@ export function Users() {
           {!loading && !loadError && !users.length && <EmptyState title="No users found" />}
         </div>
       </section>
-      {confirmation && <ConfirmDialog title="Delete user?" message={`Delete ${confirmation.name}? This cannot be undone.`} confirmLabel="Delete user" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
+      {confirmation && <ConfirmDialog tone="danger" title="Delete user?" message={`Delete ${confirmation.name}? This cannot be undone.`} confirmLabel="Delete user" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
     </section>
   )
 }

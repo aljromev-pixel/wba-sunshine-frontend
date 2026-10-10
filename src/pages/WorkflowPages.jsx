@@ -375,7 +375,7 @@ export function Adjustments() {
           </div>
         </section>
       </div>
-      {confirmation && <ConfirmDialog title={`${confirmation.decision ? 'Approve' : 'Reject'} adjustment?`} message="This decision will be recorded in the audit trail." confirmLabel={confirmation.decision ? 'Approve' : 'Reject'} onCancel={() => setConfirmation(null)} onConfirm={() => review(confirmation.id, confirmation.decision)} />}
+      {confirmation && <ConfirmDialog tone={confirmation.decision ? 'default' : 'danger'} title={`${confirmation.decision ? 'Approve' : 'Reject'} adjustment?`} message="This decision will be recorded in the audit trail." confirmLabel={confirmation.decision ? 'Approve' : 'Reject'} onCancel={() => setConfirmation(null)} onConfirm={() => review(confirmation.id, confirmation.decision)} />}
     </section>
   )
 }

@@ -53,8 +53,9 @@ export function FormError({ children }) {
 export function AsyncButton({ loading, children, loadingLabel = 'Saving…', ...props }) {
   return <button {...props} disabled={loading || props.disabled}>{loading ? loadingLabel : children}</button>
 }
-export function ConfirmDialog({ title = 'Confirm action', message, confirmLabel = 'Confirm', onCancel, onConfirm }) {
+export function ConfirmDialog({ title = 'Confirm action', message, confirmLabel = 'Confirm', tone = 'default', onCancel, onConfirm }) {
   const titleId = useId()
+  const messageId = useId()
   const dialog = useRef(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -101,13 +102,13 @@ export function ConfirmDialog({ title = 'Confirm action', message, confirmLabel 
     }
   }
   return <div className="confirm-overlay" role="presentation">
-    <section ref={dialog} tabIndex={-1} className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={loading}>
+    <section ref={dialog} tabIndex={-1} className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={messageId} aria-busy={loading}>
       <h2 id={titleId}>{title}</h2>
-      <p>{message}</p>
+      <p id={messageId}>{message}</p>
       <FormError>{error}</FormError>
       <div className="form-actions">
         <button type="button" className="inline-button" onClick={onCancel} disabled={loading}>Cancel</button>
-        <AsyncButton type="button" className="button primary" onClick={confirm} loading={loading} loadingLabel="Processing…">{confirmLabel}</AsyncButton>
+        <AsyncButton type="button" className={`button ${tone === 'danger' ? 'danger' : 'primary'}`} onClick={confirm} loading={loading} loadingLabel="Processing…">{confirmLabel}</AsyncButton>
       </div>
     </section>
   </div>
