@@ -1,3 +1,4 @@
+import { roleLevelsForDepartment } from '../utils/permissions'
 import { useEffect, useMemo, useState } from 'react'
 import { AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
@@ -364,6 +365,7 @@ export function Users() {
   const save = async (event) => {
     event.preventDefault()
     if (submitting) return
+    if (!roleLevelsForDepartment(form.department).includes(form.roleLevel)) { setError('Choose a supported role for this department.'); return }
     setError('')
     setSubmitting(true)
     try {
@@ -386,9 +388,9 @@ export function Users() {
           <h2>User management</h2>
           <p>Create, edit, and remove persistent accounts with Department + Role Level assignment.</p>
         </div>
-        <button className="button primary" onClick={() => setForm({ name: '', email: '', password: '', department: 'Warehouse', roleLevel: 'Staff' })}>Add user</button>
+        <button className="button primary" disabled={submitting} onClick={() => setForm({ name: '', email: '', password: '', department: 'Warehouse', roleLevel: 'Staff' })}>Add user</button>
       </div>
-      {form && <form className="surface compact-form" onSubmit={save}><div className="section-heading"><div><p className="eyebrow">{form.id ? 'EDIT' : 'CREATE'}</p><h2>{form.id ? 'Edit user' : 'Add user'}</h2></div><button type="button" className="inline-button" onClick={() => { setForm(null); setError('') }} disabled={submitting}>Cancel</button></div><div className="form-grid"><label>Name<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required disabled={submitting} /></label><label>Email<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required disabled={submitting} /></label><label>Password {form.id && '(leave blank to keep)'}<input type="password" minLength="8" value={form.password || ''} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required={!form.id} disabled={submitting} /></label><label>Department<select value={form.department} onChange={(event) => setForm((current) => ({ ...current, department: event.target.value }))} disabled={submitting}>{['Warehouse', 'Sales', 'Purchasing', 'Administration'].map((value) => <option key={value}>{value}</option>)}</select></label><label>Role level<select value={form.roleLevel} onChange={(event) => setForm((current) => ({ ...current, roleLevel: event.target.value }))} disabled={submitting}>{['Staff', 'Supervisor', 'Manager'].map((value) => <option key={value}>{value}</option>)}</select></label></div><FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{form.id ? 'Save user' : 'Create user'}</AsyncButton></form>}
+      {form && <form className="surface compact-form" onSubmit={save}><div className="section-heading"><div><p className="eyebrow">{form.id ? 'EDIT' : 'CREATE'}</p><h2>{form.id ? 'Edit user' : 'Add user'}</h2></div><button type="button" className="inline-button" onClick={() => { setForm(null); setError('') }} disabled={submitting}>Cancel</button></div><div className="form-grid"><label>Name<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required disabled={submitting} /></label><label>Email<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required disabled={submitting} /></label><label>Password {form.id && '(leave blank to keep)'}<input type="password" minLength="8" value={form.password || ''} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required={!form.id} disabled={submitting} /></label><label>Department<select value={form.department} onChange={(event) => { const department = event.target.value; setForm((current) => ({ ...current, department, roleLevel: roleLevelsForDepartment(department).includes(current.roleLevel) ? current.roleLevel : roleLevelsForDepartment(department)[0] })) }} disabled={submitting}>{['Warehouse', 'Sales', 'Purchasing', 'Administration'].map((value) => <option key={value}>{value}</option>)}</select></label><label>Role level<select value={roleLevelsForDepartment(form.department).includes(form.roleLevel) ? form.roleLevel : ''} required onChange={(event) => setForm((current) => ({ ...current, roleLevel: event.target.value }))} disabled={submitting}><option value="" disabled>Choose a supported role</option>{roleLevelsForDepartment(form.department).map((value) => <option key={value}>{value}</option>)}</select></label></div><FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{form.id ? 'Save user' : 'Create user'}</AsyncButton></form>}
       <section className="surface">
         {loading && <p role="status">Loading users…</p>}
         <FormError>{loadError}</FormError>
@@ -412,8 +414,8 @@ export function Users() {
                   <td>{u.department}</td>
                   <td>{u.roleLevel}</td>
                   <td>
-                    <button className="inline-button" onClick={() => setForm({ ...u, password: '' })}>Edit</button>
-                    <button className="inline-button" onClick={() => setConfirmation(u)}>Delete</button>
+                    <button className="inline-button" disabled={submitting} onClick={() => setForm({ ...u, password: '' })}>Edit</button>
+                    <button className="inline-button" disabled={submitting} onClick={() => setConfirmation(u)}>Delete</button>
                   </td>
                 </tr>
               ))}

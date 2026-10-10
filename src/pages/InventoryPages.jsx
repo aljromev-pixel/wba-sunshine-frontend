@@ -9,8 +9,8 @@ import { apiErrorMessage } from '../utils/apiErrors'
 const categories = ['All categories', 'Air Conditioners', 'Smart Home', 'Air Quality', 'Replacement Filters']
 const emptyProduct = { sku: '', name: '', category: '', stock: 0, reorderPoint: 0, capacity: '', supplier: '', leadTime: 0, unit: 'units', monthlySales: 0 }
 
-function ProductForm({ initial, onClose, onSaved, notify }) {
-  const [form, setForm] = useState(initial || emptyProduct)
+function ProductForm({ initial, onClose, onSaved, notify, onBusyChange }) {
+  const [form, setForm] = useState(initial ? { ...initial, capacity: initial.capacity ?? '' } : emptyProduct)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const submit = async (event) => {
@@ -18,6 +18,7 @@ function ProductForm({ initial, onClose, onSaved, notify }) {
     if (submitting) return
     setError('')
     setSubmitting(true)
+    onBusyChange(true)
     try {
       const payload = { ...form, stock: Number(form.stock), reorderPoint: Number(form.reorderPoint), capacity: form.capacity === '' ? null : Number(form.capacity), leadTime: Number(form.leadTime), monthlySales: Number(form.monthlySales) }
       if (initial) await inventoryService.updateProduct(initial.id, payload)
@@ -28,6 +29,7 @@ function ProductForm({ initial, onClose, onSaved, notify }) {
       setError(apiErrorMessage(exception))
     } finally {
       setSubmitting(false)
+      onBusyChange(false)
     }
   }
   return <form className="surface compact-form" onSubmit={submit}>
@@ -44,6 +46,7 @@ export function InventoryList() {
   const [sort, setSort] = useState('name')
   const [editing, setEditing] = useState(null)
   const [creating, setCreating] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [confirmation, setConfirmation] = useState(null)
   const manage = can(PERMISSIONS.INVENTORY_EDIT)
   const remove = async (item) => {
@@ -80,9 +83,9 @@ export function InventoryList() {
           <h2>Inventory at a glance</h2>
           <p>Search appliance lines, review supplier details, and open a complete batch history.</p>
         </div>
-        <div className="form-actions"><span className="record-count">{items.length} products</span>{manage && <button className="button primary" onClick={() => { setCreating(true); setEditing(null) }}>Add product</button>}</div>
+        <div className="form-actions"><span className="record-count">{items.length} products</span>{manage && <button className="button primary" disabled={saving} onClick={() => { setCreating(true); setEditing(null) }}>Add product</button>}</div>
       </div>
-      {(creating || editing) && <ProductForm initial={editing} notify={notify} onClose={() => { setCreating(false); setEditing(null) }} onSaved={() => { setCreating(false); setEditing(null) }} />}
+      {(creating || editing) && <ProductForm key={editing?.id || 'new'} onBusyChange={setSaving} initial={editing} notify={notify} onClose={() => { setCreating(false); setEditing(null) }} onSaved={() => { setCreating(false); setEditing(null) }} />}
       <section className="surface">
         <div className="filter-bar">
           <label className="search-field">
@@ -149,7 +152,7 @@ export function InventoryList() {
                     <a className="row-link" href={`#/inventory/${item.id}`}>
                       Details →
                     </a>
-                    {manage && <><button className="inline-button" onClick={() => { setEditing(item); setCreating(false) }}>Edit</button><button className="inline-button" onClick={() => setConfirmation(item)}>Delete</button></>}
+                    {manage && <><button className="inline-button" disabled={saving} onClick={() => { setEditing(item); setCreating(false) }}>Edit</button><button className="inline-button" disabled={saving} onClick={() => setConfirmation(item)}>Delete</button></>}
                   </td>
                 </tr>
               ))}
@@ -291,7 +294,7 @@ export function ProductDetails({ productId }) {
     </section>
   )
 }
-function BatchForm({ initial, products, onClose, onSaved, notify }) {
+function BatchForm({ initial, products, onClose, onSaved, notify, onBusyChange }) {
   const [form, setForm] = useState(initial || { productId: products[0]?.id || '', number: '', quantity: 0, receivedAt: new Date().toISOString().slice(0, 10), expiresAt: '' })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -300,6 +303,7 @@ function BatchForm({ initial, products, onClose, onSaved, notify }) {
     if (submitting) return
     setError('')
     setSubmitting(true)
+    onBusyChange(true)
     try {
       const payload = { ...form, productId: String(form.productId), quantity: Number(form.quantity), expiresAt: form.expiresAt || null }
       if (initial) await inventoryService.updateBatch(initial.id, payload)
@@ -310,6 +314,7 @@ function BatchForm({ initial, products, onClose, onSaved, notify }) {
       setError(apiErrorMessage(exception))
     } finally {
       setSubmitting(false)
+      onBusyChange(false)
     }
   }
   return <form className="surface compact-form" onSubmit={submit}>
@@ -324,6 +329,7 @@ export function Batches() {
   const [filter, setFilter] = useState('All batches')
   const [editing, setEditing] = useState(null)
   const [creating, setCreating] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [confirmation, setConfirmation] = useState(null)
   const manage = can(PERMISSIONS.INVENTORY_EDIT)
   const remove = async (batch) => {
@@ -344,9 +350,9 @@ export function Batches() {
           <h2>FIFO and expiry management</h2>
           <p>Use the oldest valid stock first. Expired batches are automatically excluded from FIFO recommendations.</p>
         </div>
-        {manage && <button className="button primary" onClick={() => { setCreating(true); setEditing(null) }}>Add batch</button>}
+        {manage && <button className="button primary" disabled={saving} onClick={() => { setCreating(true); setEditing(null) }}>Add batch</button>}
       </div>
-      {(creating || editing) && <BatchForm initial={editing} products={data.products} notify={notify} onClose={() => { setCreating(false); setEditing(null) }} onSaved={() => { setCreating(false); setEditing(null) }} />}
+      {(creating || editing) && <BatchForm key={editing?.id || 'new'} onBusyChange={setSaving} initial={editing} products={data.products} notify={notify} onClose={() => { setCreating(false); setEditing(null) }} onSaved={() => { setCreating(false); setEditing(null) }} />}
       <section className="surface">
         <div className="filter-bar">
           <label className="search-field">
@@ -407,7 +413,7 @@ export function Batches() {
                     <td>
                       <StatusBadge>{getBatchStatus(batch)}</StatusBadge>
                     </td>
-                    {manage && <td><button className="inline-button" onClick={() => { setEditing(batch); setCreating(false) }}>Edit</button><button className="inline-button" onClick={() => setConfirmation(batch)}>Delete</button></td>}
+                    {manage && <td><button className="inline-button" disabled={saving} onClick={() => { setEditing(batch); setCreating(false) }}>Edit</button><button className="inline-button" disabled={saving} onClick={() => setConfirmation(batch)}>Delete</button></td>}
                   </tr>
                 )
               })}

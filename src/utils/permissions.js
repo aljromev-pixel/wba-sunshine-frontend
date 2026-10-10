@@ -64,3 +64,7 @@ export const permissionMatrix = {
 
 export const userPermissions = (user) => permissionMatrix[`${user?.department}:${user?.roleLevel}`] || []
 export const can = (user, permission) => userPermissions(user).includes(permission)
+
+export const roleLevelsForDepartment = (department) => Object.keys(permissionMatrix)
+  .filter((role) => role.startsWith(`${department}:`))
+  .map((role) => role.split(':')[1])
