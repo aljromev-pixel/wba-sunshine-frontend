@@ -1,4 +1,6 @@
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '')
+const configuredTimeout = Number(import.meta.env.VITE_API_TIMEOUT_MS || 15000)
+const apiTimeoutMs = Number.isInteger(configuredTimeout) && configuredTimeout >= 1000 && configuredTimeout <= 120000 ? configuredTimeout : 15000
 
 let authTokenProvider = null
 let unauthorizedHandler = null
@@ -49,7 +51,7 @@ const errorMessage = (data, fallback) => {
   return fallback
 }
 
-export async function request(path, { method = 'GET', body, headers = {}, signal, timeoutMs = 15000 } = {}) {
+export async function request(path, { method = 'GET', body, headers = {}, signal, timeoutMs = apiTimeoutMs } = {}) {
   const url = requestUrl(path)
   const token = authTokenProvider ? await authTokenProvider() : null
   const requestHeaders = { Accept: 'application/json', ...headers }

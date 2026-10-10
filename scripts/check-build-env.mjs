@@ -4,6 +4,10 @@ const env = { ...loadEnv('production', process.cwd(), 'VITE_'), ...process.env }
 
 try {
   if (!env.VITE_API_BASE_URL) throw new Error('Set VITE_API_BASE_URL before building.')
+  if (env.VITE_API_TIMEOUT_MS !== undefined) {
+    const timeout = Number(env.VITE_API_TIMEOUT_MS)
+    if (!Number.isInteger(timeout) || timeout < 1000 || timeout > 120000) throw new Error('VITE_API_TIMEOUT_MS must be an integer from 1000 to 120000.')
+  }
   const url = new URL(env.VITE_API_BASE_URL)
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
     throw new Error('VITE_API_BASE_URL must be an HTTP(S) base URL without credentials, query, or fragment.')
