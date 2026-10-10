@@ -1,6 +1,6 @@
 import { roleLevelsForDepartment } from '../utils/permissions'
 import { useEffect, useMemo, useState } from 'react'
-import { AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
+import { FormField, useFormFeedback, AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { userService } from '../services/userService'
 import { apiErrorMessage } from '../utils/apiErrors'
@@ -351,7 +351,8 @@ export function Users() {
   const { notify } = useApp()
   const [users, setUsers] = useState([])
   const [form, setForm] = useState(null)
-  const [error, setError] = useState('')
+  const feedback = useFormFeedback()
+  const { error, setError, handleError } = feedback
   const [submitting, setSubmitting] = useState(false)
   const [confirmation, setConfirmation] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -375,10 +376,10 @@ export function Users() {
       else await userService.create(payload)
       notify(`User ${form.id ? 'updated' : 'created'}.`)
       setForm(null); setError(''); await load()
-    } catch (exception) { setError(apiErrorMessage(exception)) } finally { setSubmitting(false) }
+    } catch (exception) { handleError(exception) } finally { setSubmitting(false) }
   }
   const remove = async (user) => {
-    try { await userService.remove(user.id); notify('User deleted.'); await load() } catch (exception) { notify(apiErrorMessage(exception), 'error') }
+    await userService.remove(user.id); notify('User deleted.'); await load()
   }
   return (
     <section className="page-stack">
@@ -390,7 +391,7 @@ export function Users() {
         </div>
         <button className="button primary" disabled={submitting} onClick={() => setForm({ name: '', email: '', password: '', department: 'Warehouse', roleLevel: 'Staff' })}>Add user</button>
       </div>
-      {form && <form className="surface compact-form" onSubmit={save}><div className="section-heading"><div><p className="eyebrow">{form.id ? 'EDIT' : 'CREATE'}</p><h2>{form.id ? 'Edit user' : 'Add user'}</h2></div><button type="button" className="inline-button" onClick={() => { setForm(null); setError('') }} disabled={submitting}>Cancel</button></div><div className="form-grid"><label>Name<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required disabled={submitting} /></label><label>Email<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required disabled={submitting} /></label><label>Password {form.id && '(leave blank to keep)'}<input type="password" minLength="8" value={form.password || ''} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required={!form.id} disabled={submitting} /></label><label>Department<select value={form.department} onChange={(event) => { const department = event.target.value; setForm((current) => ({ ...current, department, roleLevel: roleLevelsForDepartment(department).includes(current.roleLevel) ? current.roleLevel : roleLevelsForDepartment(department)[0] })) }} disabled={submitting}>{['Warehouse', 'Sales', 'Purchasing', 'Administration'].map((value) => <option key={value}>{value}</option>)}</select></label><label>Role level<select value={roleLevelsForDepartment(form.department).includes(form.roleLevel) ? form.roleLevel : ''} required onChange={(event) => setForm((current) => ({ ...current, roleLevel: event.target.value }))} disabled={submitting}><option value="" disabled>Choose a supported role</option>{roleLevelsForDepartment(form.department).map((value) => <option key={value}>{value}</option>)}</select></label></div><FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{form.id ? 'Save user' : 'Create user'}</AsyncButton></form>}
+      {form && <form className="surface compact-form" onSubmit={save}><div className="section-heading"><div><p className="eyebrow">{form.id ? 'EDIT' : 'CREATE'}</p><h2>{form.id ? 'Edit user' : 'Add user'}</h2></div><button type="button" className="inline-button" onClick={() => { setForm(null); setError('') }} disabled={submitting}>Cancel</button></div><div className="form-grid"><FormField name="name" feedback={feedback}>Name<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required disabled={submitting} /></FormField><FormField name="email" feedback={feedback}>Email<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required disabled={submitting} /></FormField><FormField name="password" feedback={feedback}>Password {form.id && '(leave blank to keep)'}<input type="password" minLength="8" value={form.password || ''} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required={!form.id} disabled={submitting} /></FormField><FormField name="department" feedback={feedback}>Department<select value={form.department} onChange={(event) => { const department = event.target.value; setForm((current) => ({ ...current, department, roleLevel: roleLevelsForDepartment(department).includes(current.roleLevel) ? current.roleLevel : roleLevelsForDepartment(department)[0] })) }} disabled={submitting}>{['Warehouse', 'Sales', 'Purchasing', 'Administration'].map((value) => <option key={value}>{value}</option>)}</select></FormField><FormField name="roleLevel" feedback={feedback}>Role level<select value={roleLevelsForDepartment(form.department).includes(form.roleLevel) ? form.roleLevel : ''} required onChange={(event) => setForm((current) => ({ ...current, roleLevel: event.target.value }))} disabled={submitting}><option value="" disabled>Choose a supported role</option>{roleLevelsForDepartment(form.department).map((value) => <option key={value}>{value}</option>)}</select></FormField></div><FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{form.id ? 'Save user' : 'Create user'}</AsyncButton></form>}
       <section className="surface">
         {loading && <p role="status">Loading users…</p>}
         <FormError>{loadError}</FormError>

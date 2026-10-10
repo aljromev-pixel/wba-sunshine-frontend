@@ -1,4 +1,30 @@
-import { useRef, useState } from 'react'
+import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState } from 'react'
+import { apiErrorMessage } from '../utils/apiErrors'
+
+export function useFormFeedback() {
+  const [error, setMessage] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
+  return {
+    error,
+    fieldErrors,
+    setError: (message) => { setMessage(message); setFieldErrors({}) },
+    handleError: (exception) => {
+      setMessage(apiErrorMessage(exception))
+      setFieldErrors(exception?.data?.errors || {})
+    },
+  }
+}
+
+export function FormField({ name, feedback, children, ...props }) {
+  const errorId = `${useId()}-error`
+  const messages = feedback.fieldErrors[name]
+  return <label {...props}>
+    {Children.map(children, (child) => isValidElement(child) && ['input', 'select', 'textarea'].includes(child.type)
+      ? cloneElement(child, { name: child.props.name || name, 'aria-invalid': messages ? true : undefined, 'aria-describedby': messages ? errorId : undefined })
+      : child)}
+    {messages && <span id={errorId} className="form-error" role="alert">{[].concat(messages).join(' ')}</span>}
+  </label>
+}
 
 export function EmptyState({ title = 'Nothing to show', text = 'There are no records that match this view.' }) {
   return (
@@ -28,27 +54,55 @@ export function AsyncButton({ loading, children, loadingLabel = 'Saving…', ...
   return <button {...props} disabled={loading || props.disabled}>{loading ? loadingLabel : children}</button>
 }
 export function ConfirmDialog({ title = 'Confirm action', message, confirmLabel = 'Confirm', onCancel, onConfirm }) {
+  const titleId = useId()
+  const dialog = useRef(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const pending = useRef(false)
+  useEffect(() => {
+    const previousFocus = document.activeElement
+    dialog.current.querySelector('button').focus()
+    return () => { if (previousFocus?.isConnected) previousFocus.focus() }
+  }, [])
+  useEffect(() => {
+    const handleKey = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        if (!pending.current) onCancel()
+      }
+      if (event.key !== 'Tab') return
+      const controls = [...dialog.current.querySelectorAll('button:not([disabled])')]
+      const first = controls[0]
+      const last = controls.at(-1)
+      if (!first) { event.preventDefault(); dialog.current.focus(); return }
+      if (!dialog.current.contains(document.activeElement) || (!event.shiftKey && document.activeElement === last) || (event.shiftKey && document.activeElement === first)) {
+        event.preventDefault()
+        const target = event.shiftKey ? last : first
+        target.focus()
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onCancel])
   const confirm = async () => {
     if (pending.current) return
     pending.current = true
     setLoading(true)
+    dialog.current.focus()
     setError('')
     try {
       await onConfirm()
       onCancel()
     } catch (exception) {
-      setError(exception.message || 'Unable to complete this action. Please try again.')
+      setError(apiErrorMessage(exception))
     } finally {
       pending.current = false
       setLoading(false)
     }
   }
   return <div className="confirm-overlay" role="presentation">
-    <section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <h2 id="confirm-title">{title}</h2>
+    <section ref={dialog} tabIndex={-1} className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={loading}>
+      <h2 id={titleId}>{title}</h2>
       <p>{message}</p>
       <FormError>{error}</FormError>
       <div className="form-actions">

@@ -1,17 +1,17 @@
 import { useMemo, useState } from 'react'
-import { AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
+import { FormField, useFormFeedback, AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { inventoryService } from '../services/inventoryService'
 import { daysUntil, fifoBatch, getBatchStatus, getStockStatus } from '../utils/inventoryLogic'
 import { PERMISSIONS } from '../utils/permissions'
-import { apiErrorMessage } from '../utils/apiErrors'
 
 const categories = ['All categories', 'Air Conditioners', 'Smart Home', 'Air Quality', 'Replacement Filters']
 const emptyProduct = { sku: '', name: '', category: '', stock: 0, reorderPoint: 0, capacity: '', supplier: '', leadTime: 0, unit: 'units', monthlySales: 0 }
 
 function ProductForm({ initial, onClose, onSaved, notify, onBusyChange }) {
   const [form, setForm] = useState(initial ? { ...initial, capacity: initial.capacity ?? '' } : emptyProduct)
-  const [error, setError] = useState('')
+  const feedback = useFormFeedback()
+  const { error, setError, handleError } = feedback
   const [submitting, setSubmitting] = useState(false)
   const submit = async (event) => {
     event.preventDefault()
@@ -26,7 +26,7 @@ function ProductForm({ initial, onClose, onSaved, notify, onBusyChange }) {
       notify(`Product ${initial ? 'updated' : 'created'}.`)
       onSaved()
     } catch (exception) {
-      setError(apiErrorMessage(exception))
+      handleError(exception)
     } finally {
       setSubmitting(false)
       onBusyChange(false)
@@ -34,7 +34,7 @@ function ProductForm({ initial, onClose, onSaved, notify, onBusyChange }) {
   }
   return <form className="surface compact-form" onSubmit={submit}>
     <div className="section-heading"><div><p className="eyebrow">{initial ? 'EDIT' : 'CREATE'}</p><h2>{initial ? 'Edit product' : 'Add product'}</h2></div><button type="button" className="inline-button" onClick={onClose} disabled={submitting}>Cancel</button></div>
-    <div className="form-grid">{[['sku', 'SKU'], ['name', 'Name'], ['category', 'Category'], ['supplier', 'Supplier'], ['unit', 'Unit'], ['stock', 'Starting stock', 'number'], ['reorderPoint', 'Reorder point', 'number'], ['capacity', 'Capacity', 'number'], ['leadTime', 'Lead time (days)', 'number'], ['monthlySales', 'Monthly sales', 'number']].map(([name, label, type = 'text']) => <label key={name}>{label}<input disabled={submitting} name={name} type={type} min={type === 'number' ? '0' : undefined} value={form[name]} onChange={(event) => setForm((current) => ({ ...current, [name]: event.target.value }))} required={name !== 'capacity' && name !== 'supplier'} /></label>)}</div>
+    <div className="form-grid">{[['sku', 'SKU'], ['name', 'Name'], ['category', 'Category'], ['supplier', 'Supplier'], ['unit', 'Unit'], ['stock', 'Starting stock', 'number'], ['reorderPoint', 'Reorder point', 'number'], ['capacity', 'Capacity', 'number'], ['leadTime', 'Lead time (days)', 'number'], ['monthlySales', 'Monthly sales', 'number']].map(([name, label, type = 'text']) => <FormField key={name} name={name} feedback={feedback}>{label}<input disabled={submitting} name={name} type={type} min={type === 'number' ? '0' : undefined} value={form[name]} onChange={(event) => setForm((current) => ({ ...current, [name]: event.target.value }))} required={name !== 'capacity' && name !== 'supplier'} /></FormField>)}</div>
     <FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{initial ? 'Save product' : 'Create product'}</AsyncButton>
   </form>
 }
@@ -50,12 +50,8 @@ export function InventoryList() {
   const [confirmation, setConfirmation] = useState(null)
   const manage = can(PERMISSIONS.INVENTORY_EDIT)
   const remove = async (item) => {
-    try {
-      await inventoryService.deleteProduct(item.id)
-      notify('Product deleted.')
-    } catch (exception) {
-      notify(apiErrorMessage(exception), 'error')
-    }
+    await inventoryService.deleteProduct(item.id)
+    notify('Product deleted.')
   }
   const items = useMemo(
     () =>
@@ -296,7 +292,8 @@ export function ProductDetails({ productId }) {
 }
 function BatchForm({ initial, products, onClose, onSaved, notify, onBusyChange }) {
   const [form, setForm] = useState(initial || { productId: products[0]?.id || '', number: '', quantity: 0, receivedAt: new Date().toISOString().slice(0, 10), expiresAt: '' })
-  const [error, setError] = useState('')
+  const feedback = useFormFeedback()
+  const { error, setError, handleError } = feedback
   const [submitting, setSubmitting] = useState(false)
   const submit = async (event) => {
     event.preventDefault()
@@ -311,7 +308,7 @@ function BatchForm({ initial, products, onClose, onSaved, notify, onBusyChange }
       notify(`Batch ${initial ? 'updated' : 'created'}.`)
       onSaved()
     } catch (exception) {
-      setError(apiErrorMessage(exception))
+      handleError(exception)
     } finally {
       setSubmitting(false)
       onBusyChange(false)
@@ -319,7 +316,7 @@ function BatchForm({ initial, products, onClose, onSaved, notify, onBusyChange }
   }
   return <form className="surface compact-form" onSubmit={submit}>
     <div className="section-heading"><div><p className="eyebrow">{initial ? 'EDIT' : 'CREATE'}</p><h2>{initial ? 'Edit batch' : 'Add batch'}</h2></div><button type="button" className="inline-button" onClick={onClose} disabled={submitting}>Cancel</button></div>
-    <div className="form-grid">{!initial && <label>Product<select disabled={submitting} value={form.productId} onChange={(event) => setForm((current) => ({ ...current, productId: event.target.value }))}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>}<label>Batch number<input disabled={submitting} value={form.number} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} required /></label>{!initial && <label>Quantity<input disabled={submitting} type="number" min="0" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} required /></label>}<label>Received<input disabled={submitting} type="date" value={form.receivedAt} onChange={(event) => setForm((current) => ({ ...current, receivedAt: event.target.value }))} required /></label><label>Expiry<input disabled={submitting} type="date" value={form.expiresAt || ''} onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))} /></label></div>
+    <div className="form-grid">{!initial && <FormField name="productId" feedback={feedback}>Product<select disabled={submitting} value={form.productId} onChange={(event) => setForm((current) => ({ ...current, productId: event.target.value }))}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></FormField>}<FormField name="number" feedback={feedback}>Batch number<input disabled={submitting} value={form.number} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} required /></FormField>{!initial && <FormField name="quantity" feedback={feedback}>Quantity<input disabled={submitting} type="number" min="0" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} required /></FormField>}<FormField name="receivedAt" feedback={feedback}>Received<input disabled={submitting} type="date" value={form.receivedAt} onChange={(event) => setForm((current) => ({ ...current, receivedAt: event.target.value }))} required /></FormField><FormField name="expiresAt" feedback={feedback}>Expiry<input disabled={submitting} type="date" value={form.expiresAt || ''} onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))} /></FormField></div>
     <FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{initial ? 'Save batch' : 'Create batch'}</AsyncButton>
   </form>
 }
@@ -333,7 +330,7 @@ export function Batches() {
   const [confirmation, setConfirmation] = useState(null)
   const manage = can(PERMISSIONS.INVENTORY_EDIT)
   const remove = async (batch) => {
-    try { await inventoryService.deleteBatch(batch.id); notify('Batch deleted.') } catch (exception) { notify(apiErrorMessage(exception), 'error') }
+    await inventoryService.deleteBatch(batch.id); notify('Batch deleted.')
   }
   const rows = data.batches.filter((batch) => {
     const product = data.products.find((item) => item.id === batch.productId)

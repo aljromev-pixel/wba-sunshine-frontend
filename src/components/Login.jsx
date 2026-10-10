@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
-import { apiErrorMessage } from '../utils/apiErrors'
-import { AsyncButton, FormError } from './Shared'
+import { FormField, useFormFeedback, AsyncButton, FormError } from './Shared'
 
 export function Login() {
   const { login, authError, canRetrySession, retrySession } = useApp()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const feedback = useFormFeedback()
+  const { error, setError, handleError } = feedback
   const [submitting, setSubmitting] = useState(false)
   const submit = async (event) => {
     event.preventDefault()
@@ -17,7 +17,7 @@ export function Login() {
     try {
       await login({ email, password })
     } catch (exception) {
-      setError(apiErrorMessage(exception))
+      handleError(exception)
     } finally {
       setSubmitting(false)
     }
@@ -39,8 +39,8 @@ export function Login() {
         <h2 id="login-heading">Sign in to your workspace</h2>
         <p>Use your assigned email address and password to continue.</p>
         <form className="compact-form" onSubmit={submit}>
-          <label>Email address<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" disabled={submitting} /></label>
-          <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" disabled={submitting} /></label>
+          <FormField name="email" feedback={feedback}>Email address<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" disabled={submitting} /></FormField>
+          <FormField name="password" feedback={feedback}>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" disabled={submitting} /></FormField>
           <FormError>{error || authError}</FormError>
           {canRetrySession && <button type="button" className="inline-button" onClick={retrySession} disabled={submitting}>Retry session restoration</button>}
           <AsyncButton className="button primary" loading={submitting} loadingLabel="Signing in…">Sign in</AsyncButton>

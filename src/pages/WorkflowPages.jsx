@@ -1,10 +1,9 @@
-import { useMemo, useState } from 'react'
-import { AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
+import { useState } from 'react'
+import { FormField, useFormFeedback, AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { inventoryService } from '../services/inventoryService'
 import { fifoBatch, getBatchStatus } from '../utils/inventoryLogic'
 import { PERMISSIONS } from '../utils/permissions'
-import { apiErrorMessage } from '../utils/apiErrors'
 
 const config = {
   'Stock In': {
@@ -19,12 +18,13 @@ const config = {
   Return: { note: 'Return accepted stock to inventory after verification.', action: 'Process return' },
 }
 export function MovementForm({ type }) {
-  const { data, user, notify } = useApp()
+  const { data, notify } = useApp()
   const [productId, setProductId] = useState('')
   const [batchId, setBatchId] = useState('')
   const [quantity, setQuantity] = useState('')
   const [reference, setReference] = useState('')
-  const [error, setError] = useState('')
+  const feedback = useFormFeedback()
+  const { error, setError, handleError } = feedback
   const [submitting, setSubmitting] = useState(false)
   const product = data.products.find((item) => item.id === productId)
   const batches = data.batches.filter((item) => item.productId === productId)
@@ -36,6 +36,7 @@ export function MovementForm({ type }) {
   }
   const submit = async (event) => {
     event.preventDefault()
+    if (submitting) return
     setError('')
     setSubmitting(true)
     try {
@@ -46,7 +47,7 @@ export function MovementForm({ type }) {
       setQuantity('')
       setReference('')
     } catch (exception) {
-      setError(apiErrorMessage(exception))
+      handleError(exception)
     } finally {
       setSubmitting(false)
     }
@@ -62,9 +63,9 @@ export function MovementForm({ type }) {
       </div>
       <form className="surface transaction-form" onSubmit={submit}>
         <div className="form-grid">
-          <label>
+          <FormField name="productId" feedback={feedback}>
             Product
-            <select value={productId} onChange={(event) => chooseProduct(event.target.value)} required>
+            <select disabled={submitting} value={productId} onChange={(event) => chooseProduct(event.target.value)} required>
               <option value="">Select a product</option>
               {data.products.map((item) => (
                 <option value={item.id} key={item.id}>
@@ -72,10 +73,10 @@ export function MovementForm({ type }) {
                 </option>
               ))}
             </select>
-          </label>
-          <label>
+          </FormField>
+          <FormField name="quantity" feedback={feedback}>
             Quantity
-            <input
+            <input disabled={submitting}
               type="number"
               min="1"
               step="1"
@@ -84,11 +85,11 @@ export function MovementForm({ type }) {
               required
               placeholder="Enter quantity"
             />
-          </label>
-          <label>
+          </FormField>
+          <FormField name="batchId" feedback={feedback}>
             Batch
             {type === 'Stock In' ? (
-              <select value={batchId} onChange={(event) => setBatchId(event.target.value)}>
+              <select disabled={submitting} value={batchId} onChange={(event) => setBatchId(event.target.value)}>
                 <option value="new">Create receiving batch</option>
                 {batches.map((batch) => (
                   <option value={batch.id} key={batch.id}>
@@ -101,7 +102,7 @@ export function MovementForm({ type }) {
                 value={batchId}
                 onChange={(event) => setBatchId(event.target.value)}
                 required
-                disabled={!productId}
+                disabled={submitting || !productId}
               >
                 <option value="">Select a batch</option>
                 {batches.map((batch) => (
@@ -111,16 +112,16 @@ export function MovementForm({ type }) {
                 ))}
               </select>
             )}
-          </label>
-          <label>
+          </FormField>
+          <FormField name="reference" feedback={feedback}>
             Reference / reason
-            <input
+            <input disabled={submitting}
               value={reference}
               onChange={(event) => setReference(event.target.value)}
               required
               placeholder={type === 'Stock Out' ? 'Sales order or reference' : 'Enter reference'}
             />
-          </label>
+          </FormField>
         </div>
         {product && (
           <div className="form-context">
@@ -148,30 +149,32 @@ export function MovementForm({ type }) {
   )
 }
 export function CycleCount() {
-  const { data, user, notify } = useApp()
+  const { data, notify } = useApp()
   const [productId, setProductId] = useState(data.products[0]?.id || '')
   const [counted, setCounted] = useState('')
   const [submitted, setSubmitted] = useState(null)
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
-  const product = data.products.find((item) => item.id === productId)
-  const variance = counted === '' ? null : Number(counted) - product.stock
+  const feedback = useFormFeedback()
+  const { error, setError, handleError } = feedback
+  const product = data.products.find((item) => item.id === productId) || data.products[0]
+  const variance = !product || counted === '' ? null : Number(counted) - product.stock
   const submit = async (event) => {
     event.preventDefault()
-    if (counted === '' || Number(counted) < 0) return
+    if (submitting || !product || counted === '' || !Number.isInteger(Number(counted)) || Number(counted) < 0) return
     setError('')
     setSubmitting(true)
     const reason = `Cycle count: system ${product.stock}, counted ${counted}`
     try {
-      const request = await inventoryService.submitAdjustment({ productId, requestedQty: counted, reason })
+      const request = await inventoryService.submitAdjustment({ productId: product.id, requestedQty: counted, reason })
       setSubmitted(request)
       notify(`Cycle count submitted as ${request.id}; review is required.`)
     } catch (exception) {
-      setError(apiErrorMessage(exception))
+      handleError(exception)
     } finally {
       setSubmitting(false)
     }
   }
+  if (!product) return <section className="surface"><EmptyState title="No products to count" text="Add a product before submitting a cycle count." /></section>
   return (
     <section className="page-stack">
       <div className="page-intro">
@@ -185,10 +188,10 @@ export function CycleCount() {
         </div>
       </div>
       <form className="surface count-card" onSubmit={submit}>
-        <label>
+        <FormField name="productId" feedback={feedback}>
           Product
-          <select
-            value={productId}
+          <select disabled={submitting}
+            value={product.id}
             onChange={(event) => {
               setProductId(event.target.value)
               setCounted('')
@@ -201,7 +204,7 @@ export function CycleCount() {
               </option>
             ))}
           </select>
-        </label>
+        </FormField>
         <div className="count-comparison">
           <article>
             <small>System quantity</small>
@@ -209,15 +212,17 @@ export function CycleCount() {
             <span>{product?.unit}</span>
           </article>
           <article>
-            <small>Counted quantity</small>
-            <input
+            <FormField name="requestedQty" feedback={feedback}>Counted quantity
+            <input disabled={submitting}
               type="number"
               min="0"
               value={counted}
               onChange={(event) => setCounted(event.target.value)}
+              step="1"
               placeholder="Enter count"
               required
             />
+            </FormField>
           </article>
           <article className={variance ? 'variance' : ''}>
             <small>Variance</small>
@@ -243,7 +248,8 @@ export function Adjustments() {
   const [productId, setProductId] = useState('')
   const [requestedQty, setRequestedQty] = useState('')
   const [reason, setReason] = useState('')
-  const [error, setError] = useState('')
+  const feedback = useFormFeedback()
+  const { error, setError, handleError } = feedback
   const [submitting, setSubmitting] = useState(false)
   const [reviewing, setReviewing] = useState(null)
   const [confirmation, setConfirmation] = useState(null)
@@ -251,6 +257,7 @@ export function Adjustments() {
   const request = can(PERMISSIONS.ADJUSTMENT_REQUEST)
   const submit = async (event) => {
     event.preventDefault()
+    if (submitting) return
     setError('')
     setSubmitting(true)
     try {
@@ -261,7 +268,7 @@ export function Adjustments() {
       setReason('')
       setError('')
     } catch (exception) {
-      setError(apiErrorMessage(exception))
+      handleError(exception)
     } finally {
       setSubmitting(false)
     }
@@ -271,8 +278,6 @@ export function Adjustments() {
     try {
       await inventoryService.reviewAdjustment(id, decision)
       notify(`Adjustment request ${decision ? 'approved and applied' : 'rejected'}.`)
-    } catch (exception) {
-      notify(apiErrorMessage(exception), 'error')
     } finally {
       setReviewing(null)
     }
@@ -297,9 +302,9 @@ export function Adjustments() {
               <h2>Submit adjustment</h2>
             </div>
           </div>
-          <label>
+          <FormField name="productId" feedback={feedback}>
             Product
-            <select value={productId} onChange={(event) => setProductId(event.target.value)} required>
+            <select disabled={submitting} value={productId} onChange={(event) => setProductId(event.target.value)} required>
               <option value="">Select a product</option>
               {data.products.map((item) => (
                 <option value={item.id} key={item.id}>
@@ -307,26 +312,26 @@ export function Adjustments() {
                 </option>
               ))}
             </select>
-          </label>
-          <label>
+          </FormField>
+          <FormField name="requestedQty" feedback={feedback}>
             Verified quantity
-            <input
+            <input disabled={submitting}
               type="number"
               min="0"
               value={requestedQty}
               onChange={(event) => setRequestedQty(event.target.value)}
               required
             />
-          </label>
-          <label>
+          </FormField>
+          <FormField name="reason" feedback={feedback}>
             Reason
-            <textarea
+            <textarea disabled={submitting}
               value={reason}
               onChange={(event) => setReason(event.target.value)}
               required
               placeholder="Describe the count variance, damage, or other reason"
             />
-          </label>
+          </FormField>
           <FormError>{error}</FormError>
           <AsyncButton className="button primary" loading={submitting} loadingLabel="Submitting…">Submit for review</AsyncButton>
         </form>}
