@@ -17,6 +17,19 @@ async function makePage(handler,token=true){
  await page.route('**/api/**',async route=>{const path=new URL(route.request().url()).pathname;const method=route.request().method();const json=(status,data)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(data)});await handler({route,path,method,json});});
  return page;
 }
+async function checkDialogContrast(page){
+ const ratios=await page.getByRole('dialog').evaluate(dialog=>{
+  const rgb=color=>color.match(/[\d.]+/g).slice(0,3).map(Number);
+  const luminance=color=>rgb(color).map(v=>{v/=255;return v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[0.2126,0.7152,0.0722][i],0);
+  return [...dialog.querySelectorAll('h2,p,button')].map(el=>{
+   let background=el;
+   while(getComputedStyle(background).backgroundColor==='rgba(0, 0, 0, 0)')background=background.parentElement;
+   const a=luminance(getComputedStyle(el).color),b=luminance(getComputedStyle(background).backgroundColor);
+   return {text:el.textContent,ratio:(Math.max(a,b)+0.05)/(Math.min(a,b)+0.05)};
+  });
+ });
+ for(const {text,ratio} of ratios)assert.ok(ratio>=4.5,`Dialog contrast for ${text}: ${ratio}`);
+}
 try{
  browser=await chromium.launch({channel:'msedge',headless:true});
  let registrationCalls=0,releaseRegistration,registrationMode='validation',signupInventoryFail=true,signupLoginCalls=0;
@@ -117,14 +130,14 @@ try{
  await page.getByRole('button',{name:'Create product',exact:true}).click();await page.getByRole('button',{name:/^Saving/}).waitFor();for(const control of await page.locator('form input').all())assert.equal(await control.isDisabled(),true);await page.locator('form').evaluate(form=>form.requestSubmit());assert.equal(productCalls,1);releaseProduct();await page.locator('input[name="sku"][aria-invalid="true"]').waitFor();
  const errorId=await page.locator('input[name="sku"]').getAttribute('aria-describedby');assert.match(await page.locator(`[id="${errorId}"]`).innerText(),/already in use/);
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
- const trigger=page.getByRole('button',{name:'Delete',exact:true}).first();await trigger.click();const dialog=page.getByRole('dialog');await dialog.waitFor();
+ const trigger=page.getByRole('button',{name:'Delete',exact:true}).first();await trigger.click();const dialog=page.getByRole('dialog');await dialog.waitFor();await checkDialogContrast(page);
  assert.equal(await dialog.getByRole('button',{name:'Cancel'}).evaluate(el=>el===document.activeElement),true);
  await page.keyboard.press('Shift+Tab');assert.equal(await dialog.getByRole('button',{name:'Delete product',exact:true}).evaluate(el=>el===document.activeElement),true);
  await page.keyboard.press('Tab');assert.equal(await dialog.getByRole('button',{name:'Cancel'}).evaluate(el=>el===document.activeElement),true);
  await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});assert.equal(await trigger.evaluate(el=>el===document.activeElement),true);
  await trigger.click();await dialog.getByRole('button',{name:'Delete product',exact:true}).click();await dialog.getByRole('button',{name:/Processing/}).waitFor();
  await page.keyboard.press('Escape');assert.equal(await dialog.count(),1);await page.keyboard.press('Tab');assert.equal(await dialog.evaluate(el=>el===document.activeElement),true);assert.equal(deleteCalls,1);
- releaseDelete();await dialog.getByRole('alert').waitFor();assert.match(await dialog.getByRole('alert').innerText(),/inventory history/);await dialog.getByRole('button',{name:'Cancel'}).click();
+ releaseDelete();await dialog.getByRole('alert').waitFor();assert.match(await dialog.getByRole('alert').innerText(),/inventory history/);await checkDialogContrast(page);await dialog.getByRole('button',{name:'Cancel'}).click();
  await page.goto('http://127.0.0.1:5197/#/users');await page.getByRole('button',{name:'Add user',exact:true}).click();
  await page.locator('select[name="department"]').selectOption('Sales');assert.deepEqual(await page.locator('select[name="roleLevel"] option:not([disabled])').allTextContents(),['Staff','Supervisor']);
  await page.goto('http://127.0.0.1:5197/#/stock-in');await page.locator('select[name="productId"]').selectOption('1');await page.locator('input[name="quantity"]').fill('2');await page.locator('input[name="reference"]').fill('test');
@@ -187,12 +200,23 @@ try{
  await privacy.goto('http://127.0.0.1:5197/#/audit-trail');await privacy.getByRole('heading',{name:'Audit trail',exact:true}).waitFor();assert.equal(await privacy.getByRole('cell',{name:'User updated',exact:true}).count(),3);
  await privacy.goto('http://127.0.0.1:5197/#/users');
  await privacy.reload();await privacy.getByRole('row').filter({hasText:'Alex Lopez'}).waitFor();
+ await privacy.getByRole('row').filter({hasText:'Alex Lopez'}).getByRole('button',{name:'Delete',exact:true}).click();
+ for(const width of [1440,390]){
+  await privacy.setViewportSize({width,height:900});await checkDialogContrast(privacy);
+  assert.equal(await privacy.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`Delete dialog overflow at ${width}`);
+  if(process.env.QA_SCREENSHOT_DIR)await privacy.getByRole('dialog').screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-delete-user-${width}.png`});
+ }
+ await privacy.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
  console.log('User writes refresh the audit trail; failed audit refresh retries without repeating a write.');
  console.log('Separate names, protected administrator actions, explicit password reset, visibility, cancellation, pending duplicate protection, reload and responsive editor passed.');
  const reviewer={...user,department:'Purchasing',roleLevel:'Manager'};
  const reviews={...inventory,adjustments:[{id:1,productId:1,requestedById:2,requestedBy:'Other',systemQty:2,requestedQty:3,reason:'Count',status:'Pending'},{id:2,productId:1,requestedById:1,requestedBy:'Self',systemQty:2,requestedQty:3,reason:'Count',status:'Pending'}]};
  const review=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user:reviewer}:reviews));
  await review.goto('http://127.0.0.1:5197/#/adjustments');await review.getByRole('heading',{name:'Approve or reject requests'}).waitFor();assert.equal(await review.getByRole('heading',{name:'Submit adjustment',exact:true}).count(),0);assert.equal(await review.getByRole('button',{name:'Approve',exact:true}).count(),1);await review.getByRole('link',{name:/Adjustments/}).waitFor();
+ for(const action of ['Approve','Reject']){await review.getByRole('button',{name:action,exact:true}).click();await checkDialogContrast(review);await review.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();}
+ const batchDelete=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user}:{...inventory,batches:[{id:1,productId:1,number:'QA-EMPTY',quantity:0,receivedAt:'2030-01-01',expiresAt:null}]}));
+ await batchDelete.goto('http://127.0.0.1:5197/#/batches');await batchDelete.getByRole('button',{name:'Delete',exact:true}).click();await checkDialogContrast(batchDelete);await batchDelete.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
+ console.log('Delete user/product/batch and approve/reject dialogs have readable text and controls; desktop/mobile warning layouts passed.');
  const empty=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user}:{...inventory,products:[]}));await empty.goto('http://127.0.0.1:5197/#/cycle-count');await empty.getByRole('heading',{name:'No products to count'}).waitFor();
  const login=await makePage(({json})=>json(422,{message:'Invalid credentials.',errors:{email:['Email credentials do not match.']}}),false);await login.goto('http://127.0.0.1:5197/#/sign-in');await login.locator('input[name="email"]').fill('test@example.test');await login.locator('input[name="password"]').fill('test-password');await login.getByRole('button',{name:'Sign in',exact:true}).click();await login.locator('input[name="email"][aria-invalid="true"]').waitFor();
 
