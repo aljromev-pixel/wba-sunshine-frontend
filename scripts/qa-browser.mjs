@@ -19,16 +19,19 @@ async function makePage(handler,token=true){
 }
 try{
  browser=await chromium.launch({channel:'msedge',headless:true});
- let registrationCalls=0,releaseRegistration,registrationMode='validation';
+ let registrationCalls=0,releaseRegistration,registrationMode='validation',signupInventoryFail=true,signupLoginCalls=0;
  const publicPage=await makePage(({path,json,route})=>{
   if(path.endsWith('/auth/register')){
    registrationCalls++;
    if(registrationMode==='validation')return new Promise(resolve=>releaseRegistration=()=>resolve(json(422,{message:'Validation failed.',errors:{email:['This email is already registered.']}})));
    if(registrationMode==='offline')return route.abort('failed');
    if(registrationMode==='limited')return json(429,{message:'Too many registration attempts. Please try again later.'});
-   return json(201,{message:'Account created.',user:{...user,department:'Sales',roleLevel:'Staff'}});
+   assert.equal(route.request().postDataJSON().department,'Sales');
+   return json(201,{token:'registration-test-token',user:{...user,department:'Sales',roleLevel:'Staff'}});
   }
-  if(path.endsWith('/auth/login'))return json(200,{token:'test-only-token',user:{...user,department:'Sales',roleLevel:'Staff'}});
+  if(path.endsWith('/auth/login')){signupLoginCalls++;return json(200,{token:'test-only-token',user:{...user,department:'Sales',roleLevel:'Staff'}});}
+  if(path.endsWith('/auth/me'))return json(200,{user:{...user,department:'Sales',roleLevel:'Staff'}});
+  if(path.endsWith('/inventory')&&signupInventoryFail)return json(500,{message:'Inventory temporarily unavailable.'});
   return json(200,inventory);
  },false);
  await publicPage.goto('http://127.0.0.1:5197');
@@ -40,6 +43,7 @@ try{
  }
  await publicPage.getByRole('link',{name:'Create an account',exact:true}).click();
  await publicPage.getByRole('heading',{name:'Create your account',exact:true}).waitFor();
+ assert.deepEqual(await publicPage.getByRole('combobox',{name:'Staff role'}).locator('option').allTextContents(),['Warehouse Staff','Sales Staff','Purchasing Staff']);
  await publicPage.getByRole('button',{name:'Create account',exact:true}).click();assert.equal(registrationCalls,0);
  await publicPage.getByRole('textbox',{name:'Full name'}).fill('Test Member');
  await publicPage.getByRole('textbox',{name:'Email address'}).fill('test@example.test');
@@ -48,7 +52,7 @@ try{
  await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('alert').filter({hasText:'The passwords do not match.'}).waitFor();assert.equal(registrationCalls,0);
  await publicPage.locator('input[name="password_confirmation"]').fill('test-only-password');
  await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('button',{name:'Creating account…'}).waitFor();
- for(const input of await publicPage.locator('form input').all())assert.equal(await input.isDisabled(),true);
+ for(const input of await publicPage.locator('form input, form select').all())assert.equal(await input.isDisabled(),true);
  await publicPage.locator('form').evaluate(form=>form.requestSubmit());assert.equal(registrationCalls,1);
  releaseRegistration();await publicPage.locator('input[name="email"][aria-invalid="true"]').waitFor();
  registrationMode='offline';await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('alert').filter({hasText:'Unable to reach the API'}).waitFor();
@@ -58,14 +62,25 @@ try{
   assert.equal(await publicPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`Sign-up overflow at ${width}`);
   if(process.env.QA_SCREENSHOT_DIR)await publicPage.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-signup-${width}.png`,fullPage:true});
  }
- registrationMode='success';await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('heading',{name:'Your account is ready'}).waitFor();
- assert.equal(await publicPage.evaluate(()=>sessionStorage.getItem('wba-auth-token')),null);await publicPage.setViewportSize({width:1440,height:900});
- await publicPage.getByRole('link',{name:'Sign in',exact:true}).click();
- await publicPage.getByRole('textbox',{name:'Email address'}).fill('test@example.test');await publicPage.locator('input[name="password"]').fill('test-only-password');
- await publicPage.getByRole('button',{name:'Sign in',exact:true}).click();await publicPage.getByRole('link',{name:/Stock Out/}).waitFor();
+ registrationMode='success';await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('heading',{name:'Unable to load inventory'}).waitFor();
+ assert.equal(await publicPage.evaluate(()=>sessionStorage.getItem('wba-auth-token')),'registration-test-token');assert.equal(new URL(publicPage.url()).hash,'#/dashboard');
+ signupInventoryFail=false;await publicPage.getByRole('button',{name:'Retry inventory loading'}).click();await publicPage.getByRole('heading',{name:'Reliable answers for every customer.'}).waitFor();
+ assert.equal(registrationCalls,4);assert.equal(signupLoginCalls,0);await publicPage.setViewportSize({width:1440,height:900});await publicPage.getByRole('link',{name:/Stock Out/}).waitFor();
  assert.equal(new URL(publicPage.url()).hash,'#/dashboard');assert.equal(await publicPage.getByRole('link',{name:/User Management/}).count(),0);
+ await publicPage.reload();await publicPage.getByRole('heading',{name:'Reliable answers for every customer.'}).waitFor();assert.equal(registrationCalls,4);
+ for(const [department,dashboard] of [['Warehouse','Keep every movement accountable.'],['Purchasing','Supply decisions, made clearer.']]){
+  const staffSignup=await makePage(({path,json,route})=>{
+   const staffUser={...user,department,roleLevel:'Staff'};
+   if(path.endsWith('/auth/register')){assert.equal(route.request().postDataJSON().department,department);return json(201,{token:'staff-registration-token',user:staffUser});}
+   if(path.endsWith('/auth/me'))return json(200,{user:staffUser});
+   return json(200,inventory);
+  },false);
+  await staffSignup.goto('http://127.0.0.1:5197/#/sign-up');await staffSignup.getByRole('textbox',{name:'Full name'}).fill('Test Staff');await staffSignup.getByRole('textbox',{name:'Email address'}).fill('staff@example.test');
+  await staffSignup.getByRole('combobox',{name:'Staff role'}).selectOption(department);await staffSignup.locator('input[name="password"]').fill('test-only-password');await staffSignup.locator('input[name="password_confirmation"]').fill('test-only-password');
+  await staffSignup.getByRole('button',{name:'Create account',exact:true}).click();await staffSignup.getByRole('heading',{name:dashboard,exact:true}).waitFor();assert.equal(new URL(staffSignup.url()).hash,'#/dashboard');assert.equal(await staffSignup.getByRole('link',{name:/User Management/}).count(),0);
+ }
  const protectedPage=await makePage(({json})=>json(200,{}),false);await protectedPage.goto('http://127.0.0.1:5197/#/inventory');await protectedPage.getByRole('heading',{name:'Sign in to your workspace'}).waitFor();
- console.log('Public landing, sign-up validation, duplicate prevention, 422/429/network errors, successful registration and limited sign-in, protected routes, and responsive layouts passed.');
+ console.log('Public landing, staff-only role selection, automatic sign-in for all three departments, session restoration, inventory retry without repeat registration, 422/429/network errors, pending submissions, protected routes and responsive layouts passed.');
  let meCalls=0;
  const restore=await makePage(({path,json})=>path.endsWith('/auth/me')?json(++meCalls===1?500:200,meCalls===1?{message:'Session service unavailable.'}:{user}):json(200,inventory));
  await restore.goto('http://127.0.0.1:5197');
