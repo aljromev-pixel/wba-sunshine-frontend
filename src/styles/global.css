@@ -3,6 +3,7 @@
 @import './workflows.css' layer(components);
 @import './operations.css' layer(components);
 @import './sunshine.css' layer(theme);
+@import './public.css' layer(theme);
 
 /* Base structure; component layouts and the Sunshine theme have explicit precedence. */
 @layer base {

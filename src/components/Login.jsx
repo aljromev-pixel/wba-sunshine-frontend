@@ -2,6 +2,14 @@ import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { FormField, useFormFeedback, AsyncButton, FormError } from './Shared'
 
+export function SunshineBrand() {
+  return <a className="sunshine-lockup" href="#/" aria-label="Sunshine home">
+    <span className="login-sun" aria-hidden="true">☼</span>
+    <span className="brand-wordmark">Sun<span>shine</span></span>
+    <small>WALANGBROWNOUT APPLIANCES</small>
+  </a>
+}
+
 export function Login() {
   const { login, authError, canRetrySession, retrySession } = useApp()
   const [email, setEmail] = useState('')
@@ -25,11 +33,7 @@ export function Login() {
   return (
     <main className="login-page">
       <section className="login-brand">
-        <div className="sunshine-lockup">
-          <span className="login-sun">☼</span>
-          <span className="brand-wordmark">Sun<span>shine</span></span>
-          <small>WALANGBROWNOUT APPLIANCES</small>
-        </div>
+        <SunshineBrand />
         <p className="eyebrow">POWERING INVENTORY CLARITY</p>
         <h1>Reliable stock control, brilliantly connected.</h1>
         <p>Sunshine keeps every appliance, batch, and movement visible, accountable, and ready for the next demand.</p>
@@ -45,6 +49,8 @@ export function Login() {
           {canRetrySession && <button type="button" className="inline-button" onClick={retrySession} disabled={submitting}>Retry session restoration</button>}
           <AsyncButton className="button primary" loading={submitting} loadingLabel="Signing in…">Sign in</AsyncButton>
         </form>
+        <p className="public-account-link">New to Sunshine? <a href="#/sign-up">Sign up</a></p>
+        <a className="public-back" href="#/">← Back to home</a>
       </section>
     </main>
   )

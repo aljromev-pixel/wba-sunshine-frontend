@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AppLayout } from './components/AppLayout'
 import { Login } from './components/Login'
+import { Landing, SignUp } from './pages/PublicPages'
 import { AsyncButton, FormError, LoadingState } from './components/Shared'
 import { useApp } from './context/AppContext'
 import { PERMISSIONS } from './utils/permissions'
@@ -36,15 +37,22 @@ function NotFound() {
   )
 }
 export default function App() {
-  const { user, can, authLoading, inventoryLoading, inventoryError, retryInventory, logout } = useApp()
-  const [path, setPath] = useState(() => window.location.hash.slice(1) || '/dashboard')
+  const { user, can, authLoading, authError, inventoryLoading, inventoryError, retryInventory, logout } = useApp()
+  const [path, setPath] = useState(() => window.location.hash.slice(1) || '/')
   useEffect(() => {
-    const update = () => setPath(window.location.hash.slice(1) || '/dashboard')
+    const update = () => setPath(window.location.hash.slice(1) || '/')
     window.addEventListener('hashchange', update)
     return () => window.removeEventListener('hashchange', update)
   }, [])
+  useEffect(() => {
+    if (user && ['/', '/sign-in', '/sign-up'].includes(path)) window.location.hash = '/dashboard'
+  }, [user, path])
   if (authLoading) return <section className="loading-state">Restoring your session…</section>
-  if (!user) return <Login />
+  if (!user) {
+    if (path === '/' && !authError) return <Landing />
+    if (path === '/sign-up') return <SignUp />
+    return <Login />
+  }
   if (inventoryLoading || inventoryError) return <AppLayout path={path}>
     <section className="surface">
       {inventoryLoading ? <LoadingState /> : <>
