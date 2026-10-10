@@ -87,6 +87,33 @@ Repository configuration does not create or connect a Vercel project automatical
 References: [GitHub Node build guidance](https://docs.github.com/en/actions/tutorials/build-and-test-code/nodejs),
 [Vercel build configuration](https://vercel.com/docs/builds/configure-a-build).
 
+## Reporting source of truth
+
+Reports are **client-calculated reports based on API-provided data**. Laravel's
+persisted records, returned by `GET /api/v1/inventory`, are the authoritative data
+source. React uses the last successfully loaded snapshot to filter and calculate
+report rows; there are no report-generation API endpoints or mock report records.
+`src/utils/reports.js` defines the transformations used by the Reports page and print
+view. Refresh report data reloads the API snapshot through the shared inventory
+loader; failures use its persistent error/Retry flow. Reports are snapshots, not
+real-time accounting or independently stored backend reports.
+
+| Report | Rule |
+| --- | --- |
+| Inventory Summary | Saved product stock/reorder points, with calculated stock status. |
+| Stock Movement | All API movement records, their type, recorded quantity, reference and timestamp. |
+| Low Stock | Stock ≤ saved reorder point; shortfall = max(0, reorder point − stock). |
+| Expiring Stock | Quantity > 0 and expiry between today and 30 days ahead, inclusive, using browser-local calendar dates. Excludes expired/depleted/undated batches. |
+| Inventory Discrepancy | Adjustment requested quantity differs from stock recorded at submission, across all statuses. Variance = requested − recorded quantity. |
+| Cycle Count | Adjustments whose reason matches `Cycle count: system N, counted N`, including matched counts. This is the current UI convention; the API has no structured count-source field, so manual reasons matching it are also included. |
+| Adjustment | All API adjustment records, across Pending/Approved/Rejected statuses. |
+| Seasonal Reorder | Saved monthly sales ÷ 30 × explicit demand multiplier × saved lead time, plus safety stock. Safety stock = daily demand × lead time × safety percent ÷ 100. Round the resulting reorder point up; shortfall = max(0, result − stock). |
+
+Seasonal assumptions default to demand multiplier 1 and safety 15%, are editable
+from 0–100, and are shown in the report/print view. Recommendations never update
+saved stock or reorder points. Run `node --test scripts/reports.test.mjs` to verify
+report rules. Permissions remain those of the existing Reports route.
+
 ## QA regression
 
 See [QA_REGRESSION.md](QA_REGRESSION.md) for the executed checklist, defect retests,

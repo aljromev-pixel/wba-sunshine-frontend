@@ -123,7 +123,18 @@ the actual Laravel API and a disposable database for persistence and authorizati
 Mobile checks emulate viewport size; physical mobile devices, screen-reader behavior,
 other browser engines, and deployed HTTPS/CORS environments were not tested.
 
-The reporting source-of-truth issue remains open. Task 9's hardcoded dates, duplicate
+The reporting source-of-truth issue was resolved on 2026-10-11: reports are
+client-calculated from the last successful Laravel inventory API snapshot, as
+specified in README.md. Six report tests passed (including expiry boundaries,
+variance, saved-reason cycle-count classification, reorder assumptions, empty
+snapshots and refreshed values). Browser regression passed all eight report
+selections, API-only refresh with changed stock, assumption validation, print
+invocation, empty/restricted states, and 1440×900/390×900 layouts. The native print
+dialog/PDF output was not visually inspected. Calculation tests are included in CI.
+Cycle-count classification uses the existing saved-reason convention; it does not
+claim a structured API source field or distinguish manually matching reasons.
+
+Task 9's hardcoded dates, duplicate
 presentation code, and unknown-route fallback were resolved and retested above. Backend
 stock/batch reconciliation after adjustment approval and expiry enforcement remain
 domain follow-ups; this sign-off does not certify those business rules or the full
