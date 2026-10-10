@@ -197,15 +197,25 @@ export function AuditTrail() {
   )
 }
 export function Users() {
-  const { notify } = useApp()
+  const { notify, user: currentUser } = useApp()
   const [users, setUsers] = useState([])
   const [form, setForm] = useState(null)
+  const [changePassword, setChangePassword] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const feedback = useFormFeedback()
   const { error, setError, handleError } = feedback
   const [submitting, setSubmitting] = useState(false)
   const [confirmation, setConfirmation] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const protectedAdmin = (account) => account.department === 'Administration' && account.roleLevel === 'Manager' && String(account.id) !== String(currentUser.id)
+  const openEditor = (account = null) => {
+    if (account && protectedAdmin(account)) return
+    setForm(account ? { ...account, name: account.firstName ?? account.name, lastName: account.lastName ?? '', password: '' } : { name: '', lastName: '', email: '', password: '', department: 'Warehouse', roleLevel: 'Staff' })
+    setChangePassword(!account)
+    setShowPassword(false)
+    setError('')
+  }
   const load = async () => {
     setLoading(true)
     setLoadError('')
@@ -220,7 +230,7 @@ export function Users() {
     setSubmitting(true)
     try {
       const payload = { ...form }
-      if (!payload.password) delete payload.password
+      if (form.id && !changePassword) delete payload.password
       if (form.id) await userService.update(form.id, payload)
       else await userService.create(payload)
       notify(`User ${form.id ? 'updated' : 'created'}.`)
@@ -238,9 +248,29 @@ export function Users() {
           <h2>User management</h2>
           <p>Create, edit, and remove persistent accounts with Department + Role Level assignment.</p>
         </div>
-        <button className="button primary" disabled={submitting} onClick={() => setForm({ name: '', email: '', password: '', department: 'Warehouse', roleLevel: 'Staff' })}>Add user</button>
+        <button className="button primary" disabled={submitting} onClick={() => openEditor()}>Add user</button>
       </div>
-      {form && <form className="surface compact-form" onSubmit={save}><div className="section-heading"><div><p className="eyebrow">{form.id ? 'EDIT' : 'CREATE'}</p><h2>{form.id ? 'Edit user' : 'Add user'}</h2></div><button type="button" className="inline-button" onClick={() => { setForm(null); setError('') }} disabled={submitting}>Cancel</button></div><div className="form-grid"><FormField name="name" feedback={feedback}>Name<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required disabled={submitting} /></FormField><FormField name="email" feedback={feedback}>Email<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required disabled={submitting} /></FormField><FormField name="password" feedback={feedback}>Password {form.id && '(leave blank to keep)'}<input type="password" minLength="8" value={form.password || ''} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required={!form.id} disabled={submitting} /></FormField><FormField name="department" feedback={feedback}>Department<select value={form.department} onChange={(event) => { const department = event.target.value; setForm((current) => ({ ...current, department, roleLevel: roleLevelsForDepartment(department).includes(current.roleLevel) ? current.roleLevel : roleLevelsForDepartment(department)[0] })) }} disabled={submitting}>{['Warehouse', 'Sales', 'Purchasing', 'Administration'].map((value) => <option key={value}>{value}</option>)}</select></FormField><FormField name="roleLevel" feedback={feedback}>Role level<select value={roleLevelsForDepartment(form.department).includes(form.roleLevel) ? form.roleLevel : ''} required onChange={(event) => setForm((current) => ({ ...current, roleLevel: event.target.value }))} disabled={submitting}><option value="" disabled>Choose a supported role</option>{roleLevelsForDepartment(form.department).map((value) => <option key={value}>{value}</option>)}</select></FormField></div><FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{form.id ? 'Save user' : 'Create user'}</AsyncButton></form>}
+      {form && <form className="surface compact-form" onSubmit={save}>
+        <div className="section-heading"><div><p className="eyebrow">{form.id ? 'EDIT' : 'CREATE'}</p><h2>{form.id ? 'Edit user' : 'Add user'}</h2></div><button type="button" className="inline-button" onClick={() => { setForm(null); setError('') }} disabled={submitting}>Cancel</button></div>
+        <div className="form-grid">
+          <FormField name="name" feedback={feedback}>First name<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required maxLength={255} disabled={submitting} autoComplete="given-name" /></FormField>
+          <FormField name="lastName" feedback={feedback}>Last name<input value={form.lastName} onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))} maxLength={255} disabled={submitting} autoComplete="family-name" /></FormField>
+          <FormField name="email" feedback={feedback}>Email<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required disabled={submitting} /></FormField>
+          <FormField name="department" feedback={feedback}>Department<select value={form.department} onChange={(event) => { const department = event.target.value; setForm((current) => ({ ...current, department, roleLevel: roleLevelsForDepartment(department).includes(current.roleLevel) ? current.roleLevel : roleLevelsForDepartment(department)[0] })) }} disabled={submitting}>{['Warehouse', 'Sales', 'Purchasing', 'Administration'].map((value) => <option key={value}>{value}</option>)}</select></FormField>
+          <FormField name="roleLevel" feedback={feedback}>Role level<select value={roleLevelsForDepartment(form.department).includes(form.roleLevel) ? form.roleLevel : ''} required onChange={(event) => setForm((current) => ({ ...current, roleLevel: event.target.value }))} disabled={submitting}><option value="" disabled>Choose a supported role</option>{roleLevelsForDepartment(form.department).map((value) => <option key={value}>{value}</option>)}</select></FormField>
+        </div>
+        {form.id && !changePassword && <div><button type="button" className="button" disabled={submitting} onClick={() => setChangePassword(true)}>Change password</button></div>}
+        {changePassword && <section aria-label="Password settings">
+          <FormField name="password" feedback={feedback}>{form.id ? 'New password' : 'Password'}<input type={showPassword ? 'text' : 'password'} minLength={8} maxLength={255} value={form.password || ''} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required disabled={submitting} autoComplete="new-password" /></FormField>
+          <div className="form-actions">
+            <button type="button" className="inline-button" aria-pressed={showPassword} disabled={submitting} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? 'Hide password' : 'Show password'}</button>
+            {form.id && <button type="button" className="inline-button" disabled={submitting} onClick={() => { setChangePassword(false); setShowPassword(false); setForm((current) => ({ ...current, password: '' })); setError('') }}>Cancel password change</button>}
+          </div>
+          <p className="muted">Enter a new password with at least 8 characters. Saving it signs out other sessions.</p>
+        </section>}
+        <FormError>{error}</FormError>
+        <AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{form.id ? 'Save user' : 'Create user'}</AsyncButton>
+      </form>}
       <section className="surface">
         {loading && <p role="status">Loading users…</p>}
         <FormError>{loadError}</FormError>
@@ -264,8 +294,10 @@ export function Users() {
                   <td>{u.department}</td>
                   <td>{u.roleLevel}</td>
                   <td>
-                    <button className="inline-button" disabled={submitting} onClick={() => setForm({ ...u, password: '' })}>Edit</button>
-                    <button className="inline-button" disabled={submitting} onClick={() => setConfirmation(u)}>Delete</button>
+                    {protectedAdmin(u) ? <span className="muted">Protected administrator</span> : <>
+                      <button className="inline-button" disabled={submitting} onClick={() => openEditor(u)}>Edit</button>
+                      <button className="inline-button" disabled={submitting || String(u.id) === String(currentUser.id)} onClick={() => setConfirmation(u)}>Delete</button>
+                    </>}
                   </td>
                 </tr>
               ))}
