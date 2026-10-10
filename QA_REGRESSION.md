@@ -124,7 +124,7 @@ Mobile checks emulate viewport size; physical mobile devices, screen-reader beha
 other browser engines, and deployed HTTPS/CORS environments were not tested.
 
 The reporting source-of-truth issue remains open. Task 9's hardcoded dates, duplicate
-presentation code, and unknown-route fallback are separate follow-ups. Backend
+presentation code, and unknown-route fallback were resolved and retested above. Backend
 stock/batch reconciliation after adjustment approval and expiry enforcement remain
 domain follow-ups; this sign-off does not certify those business rules or the full
 production website.

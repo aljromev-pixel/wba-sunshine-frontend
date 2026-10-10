@@ -24,6 +24,7 @@ Set the Laravel API URL in `.env`:
 
 ```env
 VITE_API_BASE_URL=http://127.0.0.1:8000/api
+VITE_API_TIMEOUT_MS=15000
 ```
 
 `VITE_*` values are public browser configuration. Do not put passwords, API tokens, private keys, or other secrets in them. For deployment, use the public HTTPS address of the deployed Laravel API.
@@ -48,6 +49,9 @@ npm run preview
 The production files are created in `dist/`. Preview serves the built files locally.
 The build validates `VITE_API_BASE_URL` from the environment or Vite environment files.
 Vite embeds this URL at build time; changing it requires a new build.
+For a Render Free backend, set `VITE_API_TIMEOUT_MS=90000` in Vercel to accommodate
+backend cold starts. Allowed range: 1000–120000 milliseconds; no write is
+automatically retried. Use the backend's `DEPLOYMENT.md` for the Supabase/Render steps.
 
 The `Frontend build` GitHub Actions workflow runs on pull requests, pushes to `main`,
 and manual dispatch. It installs locked dependencies with `npm ci`, builds, and checks
