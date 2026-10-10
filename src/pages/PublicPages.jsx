@@ -53,7 +53,7 @@ export function Landing() {
 
 export function SignUp() {
   const { register } = useApp()
-  const [details, setDetails] = useState({ name: '', email: '', password: '', password_confirmation: '', department: 'Sales' })
+  const [details, setDetails] = useState({ name: '', lastName: '', email: '', password: '', password_confirmation: '', department: 'Sales' })
   const [submitting, setSubmitting] = useState(false)
   const pending = useRef(false)
   const feedback = useFormFeedback()
@@ -89,7 +89,8 @@ export function SignUp() {
       <h2 id="signup-heading">Create your account</h2>
         <p>Select a staff role. You will go directly to your dashboard after creating your account. Supervisor and manager access is assigned by an administrator.</p>
         <form className="compact-form" onSubmit={submit}>
-          <FormField name="name" feedback={feedback}>Full name<input value={details.name} onChange={update} required maxLength={255} autoComplete="name" disabled={submitting} /></FormField>
+          <FormField name="name" feedback={feedback}>First name<input value={details.name} onChange={update} required maxLength={255} autoComplete="given-name" disabled={submitting} /></FormField>
+          <FormField name="lastName" feedback={feedback}>Last name<input value={details.lastName} onChange={update} maxLength={255} autoComplete="family-name" disabled={submitting} /></FormField>
           <FormField name="email" feedback={feedback}>Email address<input type="email" value={details.email} onChange={update} required maxLength={255} autoComplete="email" disabled={submitting} /></FormField>
           <FormField name="department" feedback={feedback}>Staff role<select value={details.department} onChange={update} required disabled={submitting} aria-describedby="staff-access">
             {Object.keys(staffAccess).map((department) => <option key={department} value={department}>{department} Staff</option>)}
