@@ -1,8 +1,9 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { authService } from '../services/authService'
 import { setAuthTokenProvider, setUnauthorizedHandler } from '../services/apiClient'
 import { inventoryService } from '../services/inventoryService'
 import { can } from '../utils/permissions'
+import { apiErrorMessage } from '../utils/apiErrors'
 
 const AppContext = createContext(null)
 const tokenKey = 'wba-auth-token'
@@ -13,6 +14,19 @@ export function AppProvider({ children }) {
   const [data, setData] = useState(inventoryService.snapshot())
   const [notice, setNotice] = useState(null)
   const [authLoading, setAuthLoading] = useState(() => Boolean(sessionStorage.getItem(tokenKey)))
+  const [inventoryLoading, setInventoryLoading] = useState(false)
+  const [inventoryError, setInventoryError] = useState('')
+  const loadInventory = useCallback(async () => {
+    setInventoryLoading(true)
+    setInventoryError('')
+    try {
+      await inventoryService.load()
+    } catch (exception) {
+      setInventoryError(apiErrorMessage(exception))
+    } finally {
+      setInventoryLoading(false)
+    }
+  }, [])
 
   useEffect(() => inventoryService.subscribe(setData), [])
   useEffect(() => {
@@ -21,22 +35,23 @@ export function AppProvider({ children }) {
       sessionStorage.removeItem(tokenKey)
       setUser(null)
       setAuthLoading(false)
+      setInventoryError('')
+      inventoryService.reset()
     })
     const token = sessionStorage.getItem(tokenKey)
-    if (!token) return
-    authService
+    if (token) authService
       .me()
       .then(async ({ user: authenticatedUser }) => {
         setUser({ ...authenticatedUser, initials: initials(authenticatedUser.name) })
-        await inventoryService.load()
+        await loadInventory()
       })
-      .catch(() => {})
+      .catch((exception) => setNotice({ message: apiErrorMessage(exception), tone: 'error' }))
       .finally(() => setAuthLoading(false))
     return () => {
       setAuthTokenProvider(null)
       setUnauthorizedHandler(null)
     }
-  }, [])
+  }, [loadInventory])
   useEffect(() => {
     if (!notice) return
     const timer = setTimeout(() => setNotice(null), 4500)
@@ -47,6 +62,9 @@ export function AppProvider({ children }) {
     () => ({
       user,
       authLoading,
+      inventoryLoading,
+      inventoryError,
+      retryInventory: loadInventory,
       data,
       alerts: inventoryService.alerts(),
       can: (permission) => can(user, permission),
@@ -56,7 +74,7 @@ export function AppProvider({ children }) {
         const { token, user: authenticatedUser } = await authService.login(credentials)
         sessionStorage.setItem(tokenKey, token)
         setUser({ ...authenticatedUser, initials: initials(authenticatedUser.name) })
-        await inventoryService.load()
+        await loadInventory()
       },
       logout: async () => {
         try {
@@ -66,11 +84,12 @@ export function AppProvider({ children }) {
         } finally {
           sessionStorage.removeItem(tokenKey)
           setUser(null)
+          setInventoryError('')
           inventoryService.reset()
         }
       },
     }),
-    [user, authLoading, data, notice]
+    [user, authLoading, inventoryLoading, inventoryError, loadInventory, data, notice]
   )
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

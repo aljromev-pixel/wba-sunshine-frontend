@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AppLayout } from './components/AppLayout'
 import { Login } from './components/Login'
+import { AsyncButton, FormError, LoadingState } from './components/Shared'
 import { useApp } from './context/AppContext'
 import { PERMISSIONS } from './utils/permissions'
 import { Dashboard } from './pages/Dashboard'
@@ -34,7 +35,7 @@ function NotReady({ label }) {
   )
 }
 export default function App() {
-  const { user, can, authLoading } = useApp()
+  const { user, can, authLoading, inventoryLoading, inventoryError, retryInventory, logout } = useApp()
   const [path, setPath] = useState(() => window.location.hash.slice(1) || '/dashboard')
   useEffect(() => {
     const update = () => setPath(window.location.hash.slice(1) || '/dashboard')
@@ -43,6 +44,18 @@ export default function App() {
   }, [])
   if (authLoading) return <section className="loading-state">Restoring your session…</section>
   if (!user) return <Login />
+  if (inventoryLoading || inventoryError) return <AppLayout path={path}>
+    <section className="surface">
+      {inventoryLoading ? <LoadingState /> : <>
+        <h2>Unable to load inventory</h2>
+        <FormError>{inventoryError}</FormError>
+        <div className="form-actions">
+          <AsyncButton className="button primary" loading={inventoryLoading} onClick={retryInventory}>Retry inventory loading</AsyncButton>
+          <button type="button" className="inline-button" onClick={logout}>Sign out</button>
+        </div>
+      </>}
+    </section>
+  </AppLayout>
   const basePath = path.startsWith('/inventory/') ? '/inventory' : path
   const needed = permissions[basePath]
   const view =
