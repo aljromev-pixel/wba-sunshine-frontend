@@ -19,6 +19,53 @@ async function makePage(handler,token=true){
 }
 try{
  browser=await chromium.launch({channel:'msedge',headless:true});
+ let registrationCalls=0,releaseRegistration,registrationMode='validation';
+ const publicPage=await makePage(({path,json,route})=>{
+  if(path.endsWith('/auth/register')){
+   registrationCalls++;
+   if(registrationMode==='validation')return new Promise(resolve=>releaseRegistration=()=>resolve(json(422,{message:'Validation failed.',errors:{email:['This email is already registered.']}})));
+   if(registrationMode==='offline')return route.abort('failed');
+   if(registrationMode==='limited')return json(429,{message:'Too many registration attempts. Please try again later.'});
+   return json(201,{message:'Account created.',user:{...user,department:'Sales',roleLevel:'Staff'}});
+  }
+  if(path.endsWith('/auth/login'))return json(200,{token:'test-only-token',user:{...user,department:'Sales',roleLevel:'Staff'}});
+  return json(200,inventory);
+ },false);
+ await publicPage.goto('http://127.0.0.1:5197');
+ await publicPage.getByRole('heading',{name:'A brighter way to keep stock moving.'}).waitFor();
+ for(const width of [1440,390]){
+  await publicPage.setViewportSize({width,height:900});
+  assert.equal(await publicPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`Landing overflow at ${width}`);
+  if(process.env.QA_SCREENSHOT_DIR)await publicPage.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-home-${width}.png`,fullPage:true});
+ }
+ await publicPage.getByRole('link',{name:'Create an account',exact:true}).click();
+ await publicPage.getByRole('heading',{name:'Create your account',exact:true}).waitFor();
+ await publicPage.getByRole('button',{name:'Create account',exact:true}).click();assert.equal(registrationCalls,0);
+ await publicPage.getByRole('textbox',{name:'Full name'}).fill('Test Member');
+ await publicPage.getByRole('textbox',{name:'Email address'}).fill('test@example.test');
+ await publicPage.locator('input[name="password"]').fill('test-only-password');
+ await publicPage.locator('input[name="password_confirmation"]').fill('different-password');
+ await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('alert').filter({hasText:'The passwords do not match.'}).waitFor();assert.equal(registrationCalls,0);
+ await publicPage.locator('input[name="password_confirmation"]').fill('test-only-password');
+ await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('button',{name:'Creating account…'}).waitFor();
+ for(const input of await publicPage.locator('form input').all())assert.equal(await input.isDisabled(),true);
+ await publicPage.locator('form').evaluate(form=>form.requestSubmit());assert.equal(registrationCalls,1);
+ releaseRegistration();await publicPage.locator('input[name="email"][aria-invalid="true"]').waitFor();
+ registrationMode='offline';await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('alert').filter({hasText:'Unable to reach the API'}).waitFor();
+ registrationMode='limited';await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('alert').filter({hasText:'Too many registration attempts'}).waitFor();
+ for(const width of [1440,390]){
+  await publicPage.setViewportSize({width,height:900});
+  assert.equal(await publicPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`Sign-up overflow at ${width}`);
+  if(process.env.QA_SCREENSHOT_DIR)await publicPage.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-signup-${width}.png`,fullPage:true});
+ }
+ registrationMode='success';await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('heading',{name:'Your account is ready'}).waitFor();
+ assert.equal(await publicPage.evaluate(()=>sessionStorage.getItem('wba-auth-token')),null);await publicPage.setViewportSize({width:1440,height:900});
+ await publicPage.getByRole('link',{name:'Sign in',exact:true}).click();
+ await publicPage.getByRole('textbox',{name:'Email address'}).fill('test@example.test');await publicPage.locator('input[name="password"]').fill('test-only-password');
+ await publicPage.getByRole('button',{name:'Sign in',exact:true}).click();await publicPage.getByRole('link',{name:/Stock Out/}).waitFor();
+ assert.equal(new URL(publicPage.url()).hash,'#/dashboard');assert.equal(await publicPage.getByRole('link',{name:/User Management/}).count(),0);
+ const protectedPage=await makePage(({json})=>json(200,{}),false);await protectedPage.goto('http://127.0.0.1:5197/#/inventory');await protectedPage.getByRole('heading',{name:'Sign in to your workspace'}).waitFor();
+ console.log('Public landing, sign-up validation, duplicate prevention, 422/429/network errors, successful registration and limited sign-in, protected routes, and responsive layouts passed.');
  let meCalls=0;
  const restore=await makePage(({path,json})=>path.endsWith('/auth/me')?json(++meCalls===1?500:200,meCalls===1?{message:'Session service unavailable.'}:{user}):json(200,inventory));
  await restore.goto('http://127.0.0.1:5197');
@@ -72,7 +119,7 @@ try{
  const review=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user:reviewer}:reviews));
  await review.goto('http://127.0.0.1:5197/#/adjustments');await review.getByRole('heading',{name:'Approve or reject requests'}).waitFor();assert.equal(await review.getByRole('heading',{name:'Submit adjustment',exact:true}).count(),0);assert.equal(await review.getByRole('button',{name:'Approve',exact:true}).count(),1);await review.getByRole('link',{name:/Adjustments/}).waitFor();
  const empty=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user}:{...inventory,products:[]}));await empty.goto('http://127.0.0.1:5197/#/cycle-count');await empty.getByRole('heading',{name:'No products to count'}).waitFor();
- const login=await makePage(({json})=>json(422,{message:'Invalid credentials.',errors:{email:['Email credentials do not match.']}}),false);await login.goto('http://127.0.0.1:5197');await login.locator('input[name="email"]').fill('test@example.test');await login.locator('input[name="password"]').fill('test-password');await login.getByRole('button',{name:'Sign in',exact:true}).click();await login.locator('input[name="email"][aria-invalid="true"]').waitFor();
+ const login=await makePage(({json})=>json(422,{message:'Invalid credentials.',errors:{email:['Email credentials do not match.']}}),false);await login.goto('http://127.0.0.1:5197/#/sign-in');await login.locator('input[name="email"]').fill('test@example.test');await login.locator('input[name="password"]').fill('test-password');await login.getByRole('button',{name:'Sign in',exact:true}).click();await login.locator('input[name="email"][aria-invalid="true"]').waitFor();
 
  for(const status of [403,404,500]){
   const failure=await makePage(({path,json})=>path.endsWith('/auth/me')?json(200,{user}):json(status,{message:'Request failed.'}));
