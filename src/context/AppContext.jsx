@@ -33,6 +33,9 @@ export function AppProvider({ children }) {
   }, [])
 
   useEffect(() => inventoryService.subscribe(setData), [])
+  useEffect(() => inventoryService.subscribeLoadError((exception) => {
+    if (sessionStorage.getItem(tokenKey)) setInventoryError(`Your change was saved, but inventory could not be refreshed. Retry loading inventory. ${apiErrorMessage(exception)}`)
+  }), [])
   useEffect(() => {
     setAuthTokenProvider(() => sessionStorage.getItem(tokenKey))
     setUnauthorizedHandler(() => {

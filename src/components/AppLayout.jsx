@@ -11,7 +11,7 @@ const nav = [
   { href: '/transfers', label: 'Transfers', icon: '⇄', permission: PERMISSIONS.TRANSFER_CREATE },
   { href: '/returns', label: 'Returns', icon: '↩', permission: PERMISSIONS.RETURNS_CREATE },
   { href: '/cycle-count', label: 'Cycle Count', icon: '✓', permission: PERMISSIONS.CYCLE_COUNT },
-  { href: '/adjustments', label: 'Adjustments', icon: '±', permission: PERMISSIONS.ADJUSTMENT_REQUEST },
+  { href: '/adjustments', label: 'Adjustments', icon: '±', permission: [PERMISSIONS.ADJUSTMENT_REQUEST, PERMISSIONS.ADJUSTMENT_APPROVE] },
   { href: '/alerts', label: 'Alerts', icon: '!', permission: PERMISSIONS.ALERTS_VIEW },
   { href: '/reorder-calculator', label: 'Reorder Calculator', icon: '⌁', permission: PERMISSIONS.REORDER_CALCULATE },
   { href: '/reports', label: 'Reports', icon: '▧', permission: PERMISSIONS.REPORTS_VIEW },
@@ -47,7 +47,7 @@ export function AppLayout({ path, children }) {
         </div>
         <nav>
           {nav
-            .filter((item) => !item.permission || can(item.permission))
+            .filter((item) => !item.permission || (Array.isArray(item.permission) ? item.permission.some(can) : can(item.permission)))
             .map((item) => (
               <a
                 key={item.href}

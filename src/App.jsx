@@ -18,7 +18,7 @@ const permissions = {
   '/transfers': PERMISSIONS.TRANSFER_CREATE,
   '/returns': PERMISSIONS.RETURNS_CREATE,
   '/cycle-count': PERMISSIONS.CYCLE_COUNT,
-  '/adjustments': PERMISSIONS.ADJUSTMENT_REQUEST,
+  '/adjustments': [PERMISSIONS.ADJUSTMENT_REQUEST, PERMISSIONS.ADJUSTMENT_APPROVE],
   '/alerts': PERMISSIONS.ALERTS_VIEW,
   '/reorder-calculator': PERMISSIONS.REORDER_CALCULATE,
   '/reports': PERMISSIONS.REPORTS_VIEW,
@@ -59,7 +59,7 @@ export default function App() {
   const basePath = path.startsWith('/inventory/') ? '/inventory' : path
   const needed = permissions[basePath]
   const view =
-    needed && !can(needed) ? (
+    needed && !(Array.isArray(needed) ? needed.some(can) : can(needed)) ? (
       <section className="surface forbidden">
         <p className="eyebrow">ACCESS RESTRICTED</p>
         <h2>This module is not part of your assigned workspace.</h2>

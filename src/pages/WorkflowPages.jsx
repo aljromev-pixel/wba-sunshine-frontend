@@ -248,6 +248,7 @@ export function Adjustments() {
   const [reviewing, setReviewing] = useState(null)
   const [confirmation, setConfirmation] = useState(null)
   const approve = can(PERMISSIONS.ADJUSTMENT_APPROVE)
+  const request = can(PERMISSIONS.ADJUSTMENT_REQUEST)
   const submit = async (event) => {
     event.preventDefault()
     setError('')
@@ -289,7 +290,7 @@ export function Adjustments() {
         </div>
       </div>
       <div className="two-column adjustments-grid">
-        <form className="surface compact-form" onSubmit={submit}>
+        {request && <form className="surface compact-form" onSubmit={submit}>
           <div className="section-heading">
             <div>
               <p className="eyebrow">REQUEST</p>
@@ -328,7 +329,7 @@ export function Adjustments() {
           </label>
           <FormError>{error}</FormError>
           <AsyncButton className="button primary" loading={submitting} loadingLabel="Submitting…">Submit for review</AsyncButton>
-        </form>
+        </form>}
         <section className="surface">
           <div className="section-heading">
             <div>
