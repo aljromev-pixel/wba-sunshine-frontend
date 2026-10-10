@@ -91,6 +91,20 @@ try{
    if(width===390){await page.getByRole('button',{name:'Open navigation'}).click();await page.getByRole('link',{name:/Inventory/}).first().click();await page.getByRole('heading',{name:'Inventory at a glance'}).waitFor();}
   }
  }
+ for(const path of ['/missing-page','/inventory/','/inventory/1/extra']){
+  await page.goto(`http://127.0.0.1:5197/#${path}`);await page.getByRole('heading',{name:'Page not found',exact:true}).waitFor();
+  await page.getByRole('link',{name:'Return to dashboard',exact:true}).click();await page.getByRole('heading',{name:'A complete view of inventory control.'}).waitFor();
+ }
+ await page.goto('http://127.0.0.1:5197/#/reorder-calculator');await page.getByRole('heading',{name:'Seasonal reorder calculator'}).waitFor();
+ assert.equal(await page.locator('.calculator-grid select').first().inputValue(),'1');
+ await page.locator('.calculator-grid select').first().selectOption('2');
+ assert.equal(await page.getByRole('spinbutton',{name:'Average monthly sales'}).inputValue(),'2');
+ assert.equal(await page.getByRole('spinbutton',{name:'Lead time'}).inputValue(),'2');
+ assert.equal(await page.getByRole('spinbutton',{name:'Seasonal demand multiplier'}).inputValue(),'1');
+ await empty.goto('http://127.0.0.1:5197/#/reorder-calculator');await empty.getByRole('heading',{name:'No products to calculate'}).waitFor();
+ await page.goto('http://127.0.0.1:5197/#/alerts');await page.getByRole('heading',{name:'Inventory alerts'}).waitFor();await page.getByRole('heading',{name:'No alerts match this view'}).waitFor();
+ assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).backgroundColor),'rgb(5, 11, 43)');
+ console.log('Unknown routes, API-backed reorder defaults, empty calculator, API alerts, and theme checks passed.');
  console.log('401/403/404/500/network, forbidden route, and desktop/mobile navigation and overflow checks passed.');
  assert.deepEqual(errors,[]);console.log('Reviewer matrix, self-review prevention, empty Cycle Count, and login field errors passed. No browser exceptions.');
 }catch(e){console.error(e);process.exitCode=1;}finally{if(browser)await Promise.race([browser.close(),new Promise(r=>setTimeout(r,1000))]);await server.close();process.exit(process.exitCode||0);}

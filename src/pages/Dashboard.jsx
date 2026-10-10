@@ -1,11 +1,12 @@
 import { useApp } from '../context/AppContext'
-import { getStockStatus } from '../utils/inventoryLogic'
+import { getBatchStatus, getStockStatus } from '../utils/inventoryLogic'
 import { formatDate, StatusBadge } from '../components/Shared'
 
 export function Dashboard() {
   const { user, data } = useApp()
   const low = data.products.filter((item) => getStockStatus(item) === 'Low stock')
-  const expiring = data.batches.filter((batch) => batch.expiresAt && batch.expiresAt <= '2026-10-19' && batch.quantity)
+  const expiring = data.batches.filter((batch) => ['Expired', 'Expiring soon'].includes(getBatchStatus(batch)))
+  const health = data.products.filter((item) => ['Low stock', 'Near capacity'].includes(getStockStatus(item)))
   const content =
     user.department === 'Purchasing'
       ? {
@@ -107,8 +108,7 @@ export function Dashboard() {
             <a href="#/alerts">All alerts</a>
           </div>
           <div className="health-list">
-            {low
-              .concat(data.products.filter((item) => item.stock >= item.capacity * 0.9))
+            {health
               .slice(0, 4)
               .map((item) => (
                 <div key={item.id}>
@@ -121,7 +121,7 @@ export function Dashboard() {
                   <StatusBadge>{getStockStatus(item)}</StatusBadge>
                 </div>
               ))}
-            {!low.length && <p className="muted">Stock levels are within target ranges.</p>}
+            {!health.length && <p className="muted">Stock levels are within target ranges.</p>}
           </div>
         </section>
       </div>

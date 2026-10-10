@@ -25,12 +25,13 @@ const permissions = {
   '/audit-trail': PERMISSIONS.AUDIT_VIEW,
   '/users': PERMISSIONS.USERS_MANAGE,
 }
-function NotReady({ label }) {
+function NotFound() {
   return (
     <section className="surface empty-state">
       <span>◫</span>
-      <h2>{label}</h2>
-      <p>This authorized workspace is being loaded.</p>
+      <h2>Page not found</h2>
+      <p>This address does not match an available page.</p>
+      <a className="button primary" href="#/dashboard">Return to dashboard</a>
     </section>
   )
 }
@@ -56,7 +57,8 @@ export default function App() {
       </>}
     </section>
   </AppLayout>
-  const basePath = path.startsWith('/inventory/') ? '/inventory' : path
+  const productRoute = /^\/inventory\/[^/]+$/.test(path)
+  const basePath = productRoute ? '/inventory' : path
   const needed = permissions[basePath]
   const view =
     needed && !(Array.isArray(needed) ? needed.some(can) : can(needed)) ? (
@@ -71,7 +73,7 @@ export default function App() {
       <Dashboard />
     ) : path === '/inventory' ? (
       <InventoryList />
-    ) : path.startsWith('/inventory/') ? (
+    ) : productRoute ? (
       <ProductDetails productId={path.split('/').pop()} />
     ) : path === '/batches' ? (
       <Batches />
@@ -98,7 +100,7 @@ export default function App() {
     ) : path === '/users' ? (
       <Users />
     ) : (
-      <NotReady label={basePath.slice(1).replaceAll('-', ' ')} />
+      <NotFound />
     )
   return <AppLayout path={path}>{view}</AppLayout>
 }

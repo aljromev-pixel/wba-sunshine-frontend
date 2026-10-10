@@ -1,142 +1,41 @@
 import { roleLevelsForDepartment } from '../utils/permissions'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FormField, useFormFeedback, AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { userService } from '../services/userService'
 import { apiErrorMessage } from '../utils/apiErrors'
 import { calculateReorder } from '../utils/inventoryLogic'
 
-export function Alerts() {
-  const { data } = useApp()
-  const [search, setSearch] = useState('')
-  const [type, setType] = useState('All alerts')
-  const alerts = data.alerts ? [] : []
-  const rows = useMemo(() => {
-    const list = [...new Set([])]
-    return list
-  }, [])
-  const generated = (() => {
-    const low = data.products
-      .filter((p) => p.stock <= p.reorderPoint)
-      .map((p) => ({
-        id: `low-${p.id}`,
-        type: 'Low Stock',
-        product: p.name,
-        detail: `${p.stock} available; reorder point ${p.reorderPoint}`,
-        severity: 'High',
-        date: new Date().toISOString(),
-      }))
-    const exp = data.batches
-      .filter((b) => b.expiresAt && b.quantity && (b.expiresAt < '2026-09-19' || b.expiresAt <= '2026-10-19'))
-      .map((b) => ({
-        id: b.id,
-        type: b.expiresAt < '2026-09-19' ? 'Expired Stock' : 'Expiring Stock',
-        product: data.products.find((p) => p.id === b.productId)?.name,
-        detail: `${b.number} expires ${b.expiresAt}`,
-        severity: b.expiresAt < '2026-09-19' ? 'High' : 'Medium',
-        date: b.expiresAt,
-      }))
-    const dis = data.adjustments
-      .filter((a) => a.status === 'Pending')
-      .map((a) => ({
-        id: a.id,
-        type: 'Inventory Discrepancy',
-        product: data.products.find((p) => p.id === a.productId)?.name,
-        detail: `${a.id}: system ${a.systemQty}, counted ${a.requestedQty}`,
-        severity: 'High',
-        date: a.date,
-      }))
-    return [...low, ...exp, ...dis]
-  })().filter(
-    (a) =>
-      (type === 'All alerts' || a.type === type) &&
-      `${a.product} ${a.detail}`.toLowerCase().includes(search.toLowerCase())
-  )
-  return (
-    <section className="page-stack">
-      <div className="page-intro">
-        <div>
-          <p className="eyebrow">IN-APP MONITORING</p>
-          <h2>Inventory alerts</h2>
-          <p>Review low stock, expiry, capacity, and discrepancy signals without external notifications.</p>
-        </div>
-        <span className="record-count">{generated.length} active alerts</span>
-      </div>
-      <section className="surface">
-        <div className="filter-bar">
-          <label className="search-field">
-            <span>⌕</span>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search alerts" />
-          </label>
-          <select value={type} onChange={(e) => setType(e.target.value)}>
-            <option>All alerts</option>
-            <option>Low Stock</option>
-            <option>Expiring Stock</option>
-            <option>Expired Stock</option>
-            <option>Inventory Discrepancy</option>
-          </select>
-        </div>
-        <div className="alert-list">
-          {generated.map((a) => (
-            <article key={a.id}>
-              <StatusBadge>{a.severity}</StatusBadge>
-              <div>
-                <strong>
-                  {a.type} · {a.product}
-                </strong>
-                <p>{a.detail}</p>
-                <small>Generated {formatDate(a.date)}</small>
-              </div>
-              <a
-                href={
-                  a.type === 'Inventory Discrepancy'
-                    ? '#/adjustments'
-                    : a.type.includes('Stock')
-                      ? '#/inventory'
-                      : '#/batches'
-                }
-              >
-                Review →
-              </a>
-            </article>
-          ))}
-          {!generated.length && (
-            <EmptyState title="No alerts match this view" text="Your selected inventory signals are clear." />
-          )}
-        </div>
-      </section>
-    </section>
-  )
-}
 export function ReorderCalculator() {
   const { data } = useApp()
-  const [productId, setProductId] = useState('ac-15')
-  const [month, setMonth] = useState('June')
-  const [monthly, setMonthly] = useState('58')
-  const [lead, setLead] = useState('7')
+  const [productId, setProductId] = useState(data.products[0]?.id || '')
+  const [monthly, setMonthly] = useState(String(data.products[0]?.monthlySales ?? 0))
+  const [lead, setLead] = useState(String(data.products[0]?.leadTime ?? 0))
   const [safety, setSafety] = useState('15')
-  const multipliers = { June: 3, July: 2.5, December: 0.3, Stable: 1 }
+  const [multiplier, setMultiplier] = useState('1')
   const result = calculateReorder({
     monthlySales: monthly,
     leadTime: lead,
     safetyPercent: safety,
-    multiplier: multipliers[month],
+    multiplier,
   })
   const choose = (id) => {
     const p = data.products.find((x) => x.id === id)
+    if (!p) return
     setProductId(id)
     setMonthly(String(p.monthlySales))
     setLead(String(p.leadTime))
     setSafety('15')
   }
   const p = data.products.find((x) => x.id === productId)
+  if (!data.products.length) return <EmptyState title="No products to calculate" text="Add a product before calculating a reorder recommendation." />
   return (
     <section className="page-stack">
       <div className="page-intro">
         <div>
           <p className="eyebrow">PURCHASING PLANNING</p>
           <h2>Seasonal reorder calculator</h2>
-          <p>Formula-based purchasing support using sales baseline, lead time, seasonal demand, and safety stock.</p>
+          <p>Start with the selected product's saved sales and lead time. Adjust demand and safety assumptions for this calculation.</p>
         </div>
       </div>
       <div className="two-column calculator-grid">
@@ -157,21 +56,11 @@ export function ReorderCalculator() {
           </label>
           <label>
             Lead time
-            <select value={lead} onChange={(e) => setLead(e.target.value)}>
-              <option value="7">Local supplier — 7 days</option>
-              <option value="21">Imported supplier — 21 days</option>
-              <option value="14">Custom — 14 days</option>
-            </select>
+            <input type="number" min="0" value={lead} onChange={(e) => setLead(e.target.value)} />
           </label>
           <label>
-            Season
-            <select value={month} onChange={(e) => setMonth(e.target.value)}>
-              {Object.entries(multipliers).map(([k, v]) => (
-                <option key={k}>
-                  {k} — {v}x
-                </option>
-              ))}
-            </select>
+            Seasonal demand multiplier
+            <input type="number" min="0" step="0.1" value={multiplier} onChange={(e) => setMultiplier(e.target.value)} />
           </label>
           <label>
             Safety stock %
@@ -198,7 +87,7 @@ export function ReorderCalculator() {
             <div className="reorder-result">
               <small>Reorder point</small>
               <strong>{Math.ceil(result.reorderPoint)}</strong>
-              <span>at {multipliers[month]}x seasonal multiplier</span>
+              <span>at {multiplier}x seasonal multiplier</span>
             </div>
           </div>
           <p className="formula-note">ROP = (daily demand × seasonal multiplier × lead time) + safety stock</p>

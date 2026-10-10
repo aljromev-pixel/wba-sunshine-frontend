@@ -1,11 +1,19 @@
-export const today = () => new Date().toISOString().slice(0, 10)
+export const today = () => {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
 export const isExpired = (date) => Boolean(date) && date < today()
-export const daysUntil = (date) =>
-  Math.ceil((new Date(`${date}T00:00:00`) - new Date(`${today()}T00:00:00`)) / 86400000)
+export const daysUntil = (date) => {
+  const calendarDay = (value) => {
+    const [year, month, day] = value.split('-').map(Number)
+    return Date.UTC(year, month - 1, day)
+  }
+  return (calendarDay(date) - calendarDay(today())) / 86400000
+}
 export const getStockStatus = (product) =>
   product.stock <= product.reorderPoint
     ? 'Low stock'
-    : product.stock >= product.capacity * 0.9
+    : product.capacity > 0 && product.stock >= product.capacity * 0.9
       ? 'Near capacity'
       : 'In stock'
 export const getBatchStatus = (batch) =>

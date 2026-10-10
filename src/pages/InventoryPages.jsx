@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { FormField, useFormFeedback, AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { inventoryService } from '../services/inventoryService'
-import { daysUntil, fifoBatch, getBatchStatus, getStockStatus } from '../utils/inventoryLogic'
+import { daysUntil, fifoBatch, getBatchStatus, getStockStatus, today } from '../utils/inventoryLogic'
 import { PERMISSIONS } from '../utils/permissions'
 
 const categories = ['All categories', 'Air Conditioners', 'Smart Home', 'Air Quality', 'Replacement Filters']
@@ -291,7 +291,7 @@ export function ProductDetails({ productId }) {
   )
 }
 function BatchForm({ initial, products, onClose, onSaved, notify, onBusyChange }) {
-  const [form, setForm] = useState(initial || { productId: products[0]?.id || '', number: '', quantity: 0, receivedAt: new Date().toISOString().slice(0, 10), expiresAt: '' })
+  const [form, setForm] = useState(initial || { productId: products[0]?.id || '', number: '', quantity: 0, receivedAt: today(), expiresAt: '' })
   const feedback = useFormFeedback()
   const { error, setError, handleError } = feedback
   const [submitting, setSubmitting] = useState(false)

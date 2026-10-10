@@ -105,6 +105,15 @@ it does not imply that every browser or device was tested.
 
 ## Sign-off and limits
 
+Task 9 follow-up verification (2026-10-11): unknown and malformed inventory routes
+show Page not found and return to Dashboard; the reorder calculator uses API product
+defaults and handles empty inventory; Alerts displays API alerts; the Sunshine theme
+remains active after explicit CSS layering. The browser regression suite passed,
+including desktop/mobile and dialog focus checks. Three inventory-logic tests passed
+in both Asia/Manila and America/New_York, covering local midnight, rolling expiry
+boundaries, daylight-saving day differences, depleted batches, and absent capacity.
+Run these with `node --test scripts/inventoryLogic.test.mjs`. Frontend build passed.
+
 Task 7 authentication/CRUD regression is signed off after the fixes above and passing
 final runs. Laravel suite: 30 tests, 133 assertions. Frontend build: passed.
 Defect-fix commits: `8f26f02` (forms) and `e809001` (mobile layout), under Lead Dev 2.

@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-
 :root {
   color: #f5f7ff;
   background: #050b2b;
@@ -97,8 +95,7 @@ textarea:focus-visible {
   border-top-color: #2e6bff2b;
 }
 .profile .avatar,
-.profile-trigger,
-.account-list .avatar {
+.profile-trigger {
   background: linear-gradient(135deg, #2e6bff, #7c5cff);
   color: #fff;
 }
@@ -546,22 +543,6 @@ td small {
 .login-card .eyebrow {
   color: #f7c948;
 }
-.account-list button {
-  border-color: #4f8cff2b;
-  background: #0f1b3d;
-  color: #f5f7ff;
-}
-.account-list button:hover {
-  border-color: #4f8cff;
-  background: #123a8c5c;
-  box-shadow: 0 8px 18px #02061e55;
-}
-.account-list small {
-  color: #9ba9c7;
-}
-.account-list b {
-  color: #f7c948;
-}
 .empty-state {
   color: #d9e1f2;
 }
@@ -618,8 +599,5 @@ td small {
   .login-card {
     width: calc(100% - 1.25rem);
     padding: 1.35rem;
-  }
-  .account-list button {
-    padding: 0.63rem;
   }
 }

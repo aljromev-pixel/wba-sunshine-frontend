@@ -1,6 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+@layer base, components, theme;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import './workflows.css' layer(components);
+@import './operations.css' layer(components);
+@import './sunshine.css' layer(theme);
+
+/* Base structure; component layouts and the Sunshine theme have explicit precedence. */
+@layer base {
 :root {
-  font-family: 'DM Sans', Arial, sans-serif;
+  font-family: Inter, Arial, sans-serif;
   color: #193b42;
   background: #f4f7f6;
   font-synthesis: none;
@@ -69,25 +76,6 @@ a {
   color: #a7c3c1;
   font-size: 0.65rem;
   letter-spacing: 0.1em;
-}
-.brand-mark {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border-radius: 9px;
-  background: #e16b35;
-  color: #fff;
-  font-family: Manrope, sans-serif;
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-.brand-mark.large {
-  width: 52px;
-  height: 52px;
-  margin-bottom: 1.6rem;
-  border-radius: 14px;
-  font-size: 1rem;
 }
 .sidebar nav {
   display: grid;
@@ -417,42 +405,6 @@ a {
   color: #6d8586;
   font-size: 0.88rem;
   line-height: 1.55;
-}
-.account-list {
-  display: grid;
-  gap: 0.55rem;
-  margin: 1.4rem 0;
-}
-.account-list button {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  width: 100%;
-  padding: 0.7rem;
-  border: 1px solid #e0e9e6;
-  border-radius: 10px;
-  background: #fff;
-  color: #173b42;
-  text-align: left;
-}
-.account-list button:hover {
-  border-color: #e18454;
-  transform: translateY(-1px);
-  box-shadow: 0 5px 15px #163b4012;
-}
-.account-list strong {
-  display: block;
-  font-size: 0.8rem;
-}
-.account-list small {
-  display: block;
-  margin-top: 0.13rem;
-  color: #718787;
-  font-size: 0.7rem;
-}
-.account-list b {
-  margin-left: auto;
-  color: #c66234;
 }
 .login-note {
   color: #829494;
@@ -807,4 +759,6 @@ td small {
     margin-left: 0;
     width: 100%;
   }
+}
+
 }
