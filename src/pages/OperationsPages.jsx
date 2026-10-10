@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import { userService } from '../services/userService'
 import { apiErrorMessage } from '../utils/apiErrors'
 import { calculateReorder } from '../utils/inventoryLogic'
+import { buildReport, REPORT_TYPES } from '../utils/reports'
 
 export function ReorderCalculator() {
   const { data } = useApp()
@@ -96,84 +97,43 @@ export function ReorderCalculator() {
     </section>
   )
 }
-const reportTypes = [
-  'Inventory Summary',
-  'Stock Movement Report',
-  'Low Stock Report',
-  'Expiring Stock Report',
-  'Inventory Discrepancy Report',
-  'Cycle Count Report',
-  'Adjustment Report',
-  'Seasonal Reorder Report',
-]
 export function Reports() {
-  const { data } = useApp()
-  const [report, setReport] = useState(reportTypes[0])
-  const rows =
-    report === 'Stock Movement Report'
-      ? data.transactions
-      : report === 'Adjustment Report' || report === 'Cycle Count Report'
-        ? data.adjustments
-        : report === 'Low Stock Report'
-          ? data.products.filter((p) => p.stock <= p.reorderPoint)
-          : report === 'Expiring Stock Report'
-            ? data.batches.filter((b) => b.expiresAt)
-            : data.products
-  return (
-    <section className="page-stack">
-      <div className="page-intro">
-        <div>
-          <p className="eyebrow">MANAGEMENT REPORTING</p>
-          <h2>Inventory reports</h2>
-          <p>Mock report views designed to be backed by Laravel report endpoints later.</p>
-        </div>
+  const { data, retryInventory } = useApp()
+  const [type, setType] = useState(REPORT_TYPES[0])
+  const [multiplier, setMultiplier] = useState('1')
+  const [safetyPercent, setSafetyPercent] = useState('15')
+  const seasonal = type === 'Seasonal Reorder Report'
+  const valid = !seasonal || (multiplier !== '' && safetyPercent !== '' && Number.isFinite(Number(multiplier)) && Number(multiplier) >= 0 && Number(multiplier) <= 100 && Number.isFinite(Number(safetyPercent)) && Number(safetyPercent) >= 0 && Number(safetyPercent) <= 100)
+  const report = valid ? buildReport(type, data, { multiplier: Number(multiplier), safetyPercent: Number(safetyPercent) }) : null
+  return <section className="page-stack">
+    <div className="page-intro"><div>
+      <p className="eyebrow">MANAGEMENT REPORTING</p>
+      <h2>Inventory reports</h2>
+      <p>Reports are calculated in your browser from the last successfully loaded Laravel inventory data.</p>
+    </div></div>
+    <section className="surface">
+      <div className="filter-bar">
+        <label>Report type<select value={type} onChange={(event) => setType(event.target.value)}>{REPORT_TYPES.map((name) => <option key={name}>{name}</option>)}</select></label>
+        <button className="inline-button" onClick={retryInventory}>Refresh report data</button>
+        <button className="button primary" disabled={!valid} onClick={() => window.print()}>Print report</button>
       </div>
-      <section className="surface">
-        <div className="filter-bar">
-          <select value={report} onChange={(e) => setReport(e.target.value)}>
-            {reportTypes.map((x) => (
-              <option key={x}>{x}</option>
-            ))}
-          </select>
-          <button className="button primary" onClick={() => window.print()}>
-            Print report
-          </button>
-        </div>
-        <h3 className="report-title">{report}</h3>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Reference</th>
-                <th>Description</th>
-                <th>Quantity / value</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => {
-                const p = data.products.find((x) => x.id === (r.productId || r.id))
-                return (
-                  <tr key={r.id || i}>
-                    <td>
-                      <strong>{r.id || r.sku}</strong>
-                    </td>
-                    <td>{r.name || p?.name || r.type || 'Inventory record'}</td>
-                    <td>{r.quantity ?? r.stock ?? r.requestedQty ?? '—'}</td>
-                    <td>
-                      <StatusBadge>{r.status || 'Active'}</StatusBadge>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-          {!rows.length && <EmptyState title="No data for this report" />}
-        </div>
-      </section>
+      {seasonal && <div className="form-grid compact-form">
+        <label>Demand multiplier<input type="number" min="0" max="100" step="0.1" value={multiplier} onChange={(event) => setMultiplier(event.target.value)} /></label>
+        <label>Safety stock percent<input type="number" min="0" max="100" value={safetyPercent} onChange={(event) => setSafetyPercent(event.target.value)} /></label>
+      </div>}
+      <h3 className="report-title">{type}</h3>
+      {!valid ? <FormError>Enter a demand multiplier and safety percentage between 0 and 100.</FormError> : <>
+        <p>{report.description}</p>
+        <div className="table-wrap"><table>
+          <thead><tr>{report.columns.map((column) => <th key={column} scope="col">{column}</th>)}</tr></thead>
+          <tbody>{report.rows.map((row) => <tr key={row.id}>{row.values.map((value, index) => <td key={report.columns[index]}>{report.columns[index] === 'Status' ? <StatusBadge>{value ?? '—'}</StatusBadge> : value ?? '—'}</td>)}</tr>)}</tbody>
+        </table></div>
+        {!report.rows.length && <EmptyState title="No data for this report" />}
+      </>}
     </section>
-  )
+  </section>
 }
+
 export function AuditTrail() {
   const { data } = useApp()
   const [search, setSearch] = useState('')
