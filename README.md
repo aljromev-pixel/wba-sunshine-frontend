@@ -83,6 +83,13 @@ Repository configuration does not create or connect a Vercel project automatical
 References: [GitHub Node build guidance](https://docs.github.com/en/actions/tutorials/build-and-test-code/nodejs),
 [Vercel build configuration](https://vercel.com/docs/builds/configure-a-build).
 
+## QA regression
+
+See [QA_REGRESSION.md](QA_REGRESSION.md) for the executed checklist, defect retests,
+tooling prerequisites, and verification limits. `npm run qa:browser` checks deterministic
+browser states; `npm run qa:live` checks real Laravel persistence using a disposable
+database. These are local QA workflows and are separate from the CI compilation check.
+
 ## Team
 
 - Project Manager & Scrum Master, Analysis, Compilation: Sy, John Howell J.
