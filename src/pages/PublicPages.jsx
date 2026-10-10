@@ -62,6 +62,10 @@ export function SignUp() {
     event.preventDefault()
     if (pending.current) return
     feedback.setError('')
+    if (!details.name.trim() || !details.lastName.trim()) {
+      feedback.setError('Enter your first name and last name.')
+      return
+    }
     if (details.password !== details.password_confirmation) {
       feedback.setError('The passwords do not match.')
       return
@@ -90,7 +94,7 @@ export function SignUp() {
         <p>Select a staff role. You will go directly to your dashboard after creating your account. Supervisor and manager access is assigned by an administrator.</p>
         <form className="compact-form" onSubmit={submit}>
           <FormField name="name" feedback={feedback}>First name<input value={details.name} onChange={update} required maxLength={255} autoComplete="given-name" disabled={submitting} /></FormField>
-          <FormField name="lastName" feedback={feedback}>Last name<input value={details.lastName} onChange={update} maxLength={255} autoComplete="family-name" disabled={submitting} /></FormField>
+          <FormField name="lastName" feedback={feedback}>Last name<input value={details.lastName} onChange={update} required maxLength={255} autoComplete="family-name" disabled={submitting} /></FormField>
           <FormField name="email" feedback={feedback}>Email address<input type="email" value={details.email} onChange={update} required maxLength={255} autoComplete="email" disabled={submitting} /></FormField>
           <FormField name="department" feedback={feedback}>Staff role<select value={details.department} onChange={update} required disabled={submitting} aria-describedby="staff-access">
             {Object.keys(staffAccess).map((department) => <option key={department} value={department}>{department} Staff</option>)}
